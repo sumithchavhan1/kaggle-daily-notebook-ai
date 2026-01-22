@@ -7,127 +7,55 @@ def call_perplexity_for_notebook(dataset_meta):
     api_key = os.getenv("PERPLEXITY_API_KEY")
     dataset_slug = dataset_meta['dataset_slug']
     dataset_title = dataset_meta['dataset_title']
+    dataset_path = f"/kaggle/input/{dataset_slug.split('/')[1]}/"
     
-    user_prompt = f"""You are an expert Kaggle data scientist. Generate a COMPLETE, PROFESSIONAL, end-to-end machine learning notebook for:
+    # Simplified prompt without embedded code blocks to avoid API errors
+    user_prompt = f"""Generate a complete professional Kaggle notebook analyzing the dataset: {dataset_title}
 
-Dataset: {dataset_title}
-Slug: {dataset_slug}
-Data Path: /kaggle/input/{dataset_slug.split('/')[1]}/
+Dataset path: {dataset_path}
 
-Create a FULL-FLEDGED notebook with 15-25 cells including:
+Create a comprehensive ML analysis notebook with 18-22 cells including:
 
-## REQUIRED STRUCTURE (Generate ALL these cells):
+1. Introduction markdown with title and dataset overview
+2. Import all necessary libraries: pandas, numpy, matplotlib, seaborn, sklearn, xgboost
+3. Load the dataset from the path above
+4. Display dataset shape and basic info
+5. Show first few rows of data
+6. Check for missing values and visualize if present
+7. Statistical summary of numeric columns
+8. Distribution plots for key numeric features
+9. Correlation heatmap
+10. Categorical variable analysis with count plots
+11. Feature relationships visualization
+12. Data preprocessing and feature engineering
+13. Split data into train and test sets 80-20
+14. Train RandomForest model
+15. Evaluate RandomForest with metrics and confusion matrix
+16. Train XGBoost model
+17. Evaluate XGBoost with metrics and feature importance
+18. Compare both models with visualizations
+19. Final conclusions and recommendations
 
-1. **Title & Introduction Markdown Cell**
-   - Professional title with emoji
-   - Brief dataset overview
-   - Key objectives and questions to answer
-   - Table of contents
-
-2. **Import Libraries Code Cell**
-   ```python
-   import pandas as pd
-   import numpy as np
-   import matplotlib.pyplot as plt
-   import seaborn as sns
-   from sklearn.model_selection import train_test_split
-   from sklearn.preprocessing import StandardScaler, LabelEncoder
-   from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-   from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, mean_squared_error, r2_score
-   import xgboost as xgb
-   import warnings
-   warnings.filterwarnings('ignore')
-   %matplotlib inline
-   ```
-
-3. **Data Loading Code Cell**
-   - Load CSV/data files from /kaggle/input path
-   - Display shape
-
-4. **Initial Data Exploration Markdown**
-   - Explain what we'll explore
-
-5. **Basic Info Code Cell** - df.head(), df.info(), df.describe()
-
-6. **Missing Values Analysis**
-   - Check for nulls
-   - Visualization if missing data exists
-
-7. **Data Visualization Section Markdown**
-
-8-12. **Multiple Visualization Code Cells** (5+ different plots):
-   - Distribution plots (histograms, kde plots)
-   - Count plots for categorical variables
-   - Correlation heatmap
-   - Box plots for outlier detection
-   - Pairplots or scatter plots showing relationships
-
-13. **Feature Engineering Markdown** - Explain preprocessing steps
-
-14. **Feature Engineering Code**
-   - Handle missing values if any
-   - Encode categorical variables
-   - Feature scaling if needed
-   - Create new features if applicable
-
-15. **Train-Test Split Code**
-   - 80-20 split
-   - Separate features and target
-
-16. **Model 1: RandomForest**
-   - Training code
-   - Predictions
-
-17. **RandomForest Evaluation**
-   - Metrics (accuracy/rmse/r2)
-   - Confusion matrix or residual plots
-   - Feature importance plot
-
-18. **Model 2: XGBoost**
-   - Training code
-   - Predictions
-
-19. **XGBoost Evaluation**
-   - Metrics
-   - Comparison with RandomForest
-   - Feature importance plot
-
-20. **Results Comparison Markdown**
-   - Compare both models
-   - Insights and observations
-
-21. **Advanced Insights Code** (Optional)
-   - Additional analysis
-   - Business recommendations
-
-22. **Conclusions & Next Steps Markdown**
-   - Summary of findings
-   - Model performance insights
-   - Future improvements
-
-## CRITICAL REQUIREMENTS:
-- Output ONLY valid JSON (no markdown, no code blocks, no explanations)
-- ALL code must be COMPLETE and EXECUTABLE - NO placeholders like '# Your code here'
-- Use actual column names from typical datasets (id, name, date, price, category, etc.)
-- All imports must be standard Kaggle libraries
-- Code must handle both classification and regression scenarios intelligently
+IMPORTANT REQUIREMENTS:
+- Output ONLY valid JSON, no markdown code blocks
+- NO placeholders or comments like TODO or your code here
+- All code must be complete and executable
+- Use realistic column names like date, price, quantity, category, etc
 - Include proper error handling
-- Add professional comments in code
-- Use seaborn/matplotlib for beautiful visualizations
+- Add helpful markdown explanations between code cells
 
-## JSON OUTPUT FORMAT:
+JSON structure:
 {{
-    "notebook_title": "Professional Title with Context",
-    "notebook_slug": "descriptive-analysis-slug-{dataset_slug.split('/')[1]}",
-    "description": "Comprehensive ML analysis with EDA, visualization, RandomForest, XGBoost, and insights",
+    "notebook_title": "Professional ML Analysis: {dataset_title}",
+    "notebook_slug": "ml-analysis-{dataset_slug.split('/')[1]}",
+    "description": "Comprehensive machine learning analysis with EDA, visualizations, RandomForest, and XGBoost models",
     "cells": [
-        {{"type": "markdown", "content": "# Title\n\nDetailed intro..."}},
-        {{"type": "code", "content": "import pandas as pd\nimport numpy as np..."}},
-        ... (continue with all 15-25 cells)
+        {{"type": "markdown", "content": "markdown text here"}},
+        {{"type": "code", "content": "python code here"}}
     ]
 }}
 
-Generate the complete JSON NOW with ALL cells filled properly:"""
+Generate the complete JSON now with all cells filled:"""
 
     try:
         print(f"📡 Calling Perplexity API for comprehensive notebook...")
@@ -138,12 +66,12 @@ Generate the complete JSON NOW with ALL cells filled properly:"""
                 "Content-Type": "application/json"
             },
             json={
-                "model": "pplx-pro",
+                "model": "llama-3.1-sonar-large-128k-online",
                 "messages": [{"role": "user", "content": user_prompt}],
-                "temperature": 0.7,
-                "max_tokens": 8000
+                "temperature": 0.3,
+                "max_tokens": 12000
             },
-            timeout=90
+            timeout=120
         )
         
         response.raise_for_status()
