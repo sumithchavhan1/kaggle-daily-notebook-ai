@@ -2,9 +2,7 @@
 import json
 import os
 from typing import Any, Dict, List, Optional
-
 import requests
-
 
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 DEFAULT_MODEL = "pplx-7b-online"
@@ -65,17 +63,17 @@ class PerplexityNotebookClient:
             "Goal:\n",
             "- Generate a complete Kaggle notebook that loads this dataset, performs strong EDA and builds at least one baseline ML model.\n",
             "- Match the style of polished Kaggle notebooks with:\n",
-            "  * Markdown title and description.\n",
-            "  * Import cell with numpy, pandas, matplotlib, seaborn, sklearn, scipy if needed.\n",
-            "  * Data loading cell using the given CSV path.\n",
-            "  * Data overview (head, info, describe, missing values, duplicates).\n",
-            "  * Visualizations: distributions, correlations, time-series or category plots as appropriate.\n",
-            "  * Feature engineering and encoding where needed.\n",
-            "  * Train/test split.\n",
-            "  * At least one model (e.g., LinearRegression / RandomForest / GradientBoosting for regression or classifiers for classification).\n",
-            "  * Metrics and model comparison (R2/RMSE/MAE for regression, accuracy/F1/ROC-AUC for classification).\n",
-            "  * Feature importance plots if model supports it.\n",
-            "  * Final conclusion markdown summarizing key insights.\n",
+            " * Markdown title and description.\n",
+            " * Import cell with numpy, pandas, matplotlib, seaborn, sklearn, scipy if needed.\n",
+            " * Data loading cell using the given CSV path.\n",
+            " * Data overview (head, info, describe, missing values, duplicates).\n",
+            " * Visualizations: distributions, correlations, time-series or category plots as appropriate.\n",
+            " * Feature engineering and encoding where needed.\n",
+            " * Train/test split.\n",
+            " * At least one model (e.g., LinearRegression / RandomForest / GradientBoosting for regression or classifiers for classification).\n",
+            " * Metrics and model comparison (R2/RMSE/MAE for regression, accuracy/F1/ROC-AUC for classification).\n",
+            " * Feature importance plots if model supports it.\n",
+            " * Final conclusion markdown summarizing key insights.\n",
             "\n",
             "Technical requirements:\n",
             "- Use a single main DataFrame named 'df'.\n",
@@ -100,11 +98,13 @@ class PerplexityNotebookClient:
             "Content-Type": "application/json",
         }
 
+        # Combine system and user prompts into a single user message
+        combined_prompt = self._build_system_prompt() + "\n\n" + self._build_user_prompt(dataset_meta)
+
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": self._build_system_prompt()},
-                {"role": "user", "content": self._build_user_prompt(dataset_meta)},
+                {"role": "user", "content": combined_prompt},
             ],
             "temperature": 0.4,
             "max_tokens": 4096,
@@ -139,12 +139,12 @@ class PerplexityNotebookClient:
                 text = text.strip("`")
                 if "\n" in text:
                     text = "\n".join(text.split("\n")[1:])
-            try:
-                cells = json.loads(text)
-            except json.JSONDecodeError as exc2:
-                raise RuntimeError(
-                    f"Failed to parse notebook JSON from model output: {exc2}\n\nRaw content:\n{content[:2000]}"
-                ) from exc
+                try:
+                    cells = json.loads(text)
+                except json.JSONDecodeError as exc2:
+                    raise RuntimeError(
+                        f"Failed to parse notebook JSON from model output: {exc2}\n\nRaw content:\n{content[:2000]}"
+                    ) from exc
 
         if not isinstance(cells, list):
             raise RuntimeError("Model output is not a list of cells.")
