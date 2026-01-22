@@ -6,6 +6,7 @@ Handles publishing of generated notebooks to Kaggle
 import os
 import json
 import logging
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from kaggle.api.kaggle_api_extended import KaggleApi
@@ -136,24 +137,45 @@ class KaggleNotebookPublisher:
         try:
             logger.info('Pushing notebook to Kaggle...')
             
-            # Use kaggle kernel push command
-            # Create a notebook slug from title
+            # Use kaggle kernel push command with subprocess to capture output
             notebook_slug = notebook_path.stem
             username = self.kaggle_api.read_config_file().get('username', 'user')
             
-            # Execute kaggle kernels push command
+            # Execute kaggle kernels push command using subprocess
             kernel_dir = notebook_path.parent
-            cmd = f"cd {kernel_dir} && kaggle kernels push"
+            cmd = ["kaggle", "kernels", "push"]
             
-            logger.info(f'Executing: {cmd}')
-            result = os.system(cmd)
+            logger.info(f'Executing: {" ".join(cmd)} in {kernel_dir}')
             
-            if result == 0:
+            # Use subprocess with PIPE to capture both stdout and stderr
+            process = subprocess.Popen(
+                cmd,
+                cwd=str(kernel_dir),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            stdout, stderr = process.communicate()
+            
+            # Log the output for debugging
+            if stdout:
+                logger.info(f'Kaggle stdout: {stdout}')
+            if stderr:
+                logger.info(f'Kaggle stderr: {stderr}')
+            
+            # Check for conflict error in stderr or stdout
+            combined_output = stdout + stderr
+            if '409' in combined_output or 'already in use' in combined_output or 'Conflict' in combined_output:
+                raise Exception(f'Title conflict error detected: {combined_output}')
+            
+            if process.returncode == 0:
                 publication_url = f"https://www.kaggle.com/{username}/{notebook_slug}"
                 logger.info(f'Kernel push successful: {publication_url}')
                 return publication_url
             else:
-                raise Exception(f'Kernel push failed with code {result}')
+                error_msg = f'Kernel push failed with code {process.returncode}. Stderr: {stderr}'
+                raise Exception(error_msg)
             
         except Exception as e:
             logger.error(f'Error pushing to Kaggle: {str(e)}')
