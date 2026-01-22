@@ -32,7 +32,7 @@ class KaggleNotebookPublisher:
             
             # Prepare notebook metadata
             metadata = {
-                "id": f"{self.kaggle_api.read_config_file().get('username')}/{title.replace(' ', '-').lower()}",
+                "id": f"{self.kaggle_api.read_config_file().get('username')}/notebook-{datetime.now().strftime('%Y%m%d%H%M%S')}",
                 "title": title,
                 "code_required": False,
                 "enable_gpu": False,
