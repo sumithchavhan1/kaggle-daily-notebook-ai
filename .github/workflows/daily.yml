@@ -8,36 +8,30 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-
     env:
-KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
       PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
       TZ: Asia/Kolkata
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Configure Kaggle API
         run: |
-mkdir -p ~/.kaggle
-            echo "${KAGGLE_API_TOKEN}" > ~/.kaggle/kaggle.json
-            chmod 600 ~/.kaggle/kaggle.json
+          mkdir -p ~/.kaggle
+          echo "${KAGGLE_API_TOKEN}" > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
       - name: Run daily notebook generation
         run: |
           python main.py
-
       - name: Commit and push generated notebooks
         if: always()
         run: |
