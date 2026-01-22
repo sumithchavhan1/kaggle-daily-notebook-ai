@@ -103,18 +103,25 @@ class KaggleNotebookPublisher:
         try:
             logger.info('Pushing notebook to Kaggle...')
             
-            # Use kaggle kernel push command equivalent
-            # For now, return a simulated URL
+        # Use kaggle kernel push command
+            # Create a notebook slug from title
             notebook_slug = notebook_path.stem
             username = self.kaggle_api.read_config_file().get('username', 'user')
-            publication_url = f"https://www.kaggle.com/{username}/{notebook_slug}"
             
-            # In production, you would use:
-            # os.system(f"kaggle kernels push -p {notebook_path.parent}")
+            # Execute kaggle kernels push command
+            kernel_dir = notebook_path.parent
+            cmd = f"cd {kernel_dir} && kaggle kernels push"
             
-            logger.info(f'Pushed to Kaggle: {publication_url}')
-            return publication_url
-        
+            logger.info(f'Executing: {cmd}')
+            result = os.system(cmd)
+            
+            if result == 0:
+                publication_url = f"https://www.kaggle.com/{username}/{notebook_slug}"
+                logger.info(f'Kernel push successful: {publication_url}')
+                return publication_url
+            else:
+                raise Exception(f'Kernel push failed with code {result}')
+            
         except Exception as e:
             logger.error(f'Error pushing to Kaggle: {str(e)}')
             raise
