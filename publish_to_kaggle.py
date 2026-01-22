@@ -43,7 +43,8 @@ class KaggleNotebookPublisher:
                 "language": "python",
                 "kernel_type": "notebook",
                 "is_private": is_private,
-                "enable_internet": True
+                "enable_internet": True,
+            "code_file": notebook_path.name
             }
             
             # Save metadata
