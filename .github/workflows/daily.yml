@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
       PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
       TZ: Asia/Kolkata
 
@@ -32,11 +31,9 @@ jobs:
 
       - name: Configure Kaggle API
         run: |
-          mkdir -p ~/.kaggle
-          python3 -c "import json, os; json.dump({'username': os.environ['KAGGLE_USERNAME'], 'key': os.environ['KAGGLE_KEY']}, open(os.path.expanduser('~/.kaggle/kaggle.json'), 'w'))"
-          chmod 600 ~/.kaggle/kaggle.json
-          python3 -c "from kaggle.api.kaggle_api_extended import KaggleApi; api = KaggleApi(); api.authenticate(); print('Kaggle API authenticated successfully')"
-
+mkdir -p ~/.kaggle
+            echo "${KAGGLE_API_TOKEN}" > ~/.kaggle/kaggle.json
+            chmod 600 ~/.kaggle/kaggle.json
       - name: Run daily notebook generation
         run: |
           python main.py
