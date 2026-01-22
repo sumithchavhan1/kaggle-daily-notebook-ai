@@ -9,7 +9,7 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     env:
-      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KAGGLE_CONFIG_JSON: ${{ secrets.KAGGLE_CONFIG_JSON }}
       PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
       TZ: Asia/Kolkata
     steps:
@@ -27,7 +27,7 @@ jobs:
       - name: Configure Kaggle API
         run: |
           mkdir -p ~/.kaggle
-          echo "${KAGGLE_API_TOKEN}" > ~/.kaggle/kaggle.json
+          echo "${KAGGLE_CONFIG_JSON}" > ~/.kaggle/kaggle.json
           chmod 600 ~/.kaggle/kaggle.json
       - name: Run daily notebook generation
         run: |
