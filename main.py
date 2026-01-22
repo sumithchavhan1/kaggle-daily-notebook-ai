@@ -3,12 +3,15 @@
 Main orchestration script for Kaggle Daily Notebook Generation
 Fetches trending datasets, generates notebooks, and publishes them daily at 9 AM IST
 Uses KAGGLE_API_TOKEN for authentication (stored in ~/.kaggle/kaggle.json)
+Improved error handling and retry logic
 """
 import os
 import json
 import logging
+import time
 from datetime import datetime
 import sys
+from typing import Optional, Dict, Any
 
 try:
     from kaggle.api.kaggle_api_extended import KaggleApi
@@ -18,10 +21,10 @@ except ImportError as e:
     print(f"Import error: {str(e)}")
     sys.exit(1)
 
-# Configure logging
+# Configure logging with better formatting
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('kaggle_notebook_gen.log'),
         logging.StreamHandler()
@@ -30,11 +33,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class KaggLeNotebookOrchestrator:
-    """Main orchestrator for daily notebook generation and publication"""
+    """Main orchestrator for daily notebook generation and publication with error handling"""
+    
+    MAX_RETRIES = 3
+    RETRY_DELAY = 5  # seconds
     
     def __init__(self):
         """Initialize the orchestrator with API credentials"""
         try:
+            logger.info('Initializing Kaggle Notebook Orchestrator...')
             self.kaggle_api = KaggleApi()
             self.kaggle_api.authenticate()
             logger.info('Kaggle API authenticated successfully')
@@ -54,44 +61,61 @@ class KaggLeNotebookOrchestrator:
             logger.error(f'Failed to initialize components: {str(e)}')
             raise
     
-    def fetch_trending_dataset(self):
-        """Fetch a trending dataset from Kaggle"""
+    def _retry_operation(self, func, *args, operation_name: str = "operation", **kwargs) -> Any:
+        """Generic retry wrapper for API operations"""
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                logger.info(f'Attempting {operation_name} (Attempt {attempt}/{self.MAX_RETRIES})')
+                result = func(*args, **kwargs)
+                logger.info(f'{operation_name} succeeded on attempt {attempt}')
+                return result
+            except Exception as e:
+                logger.warning(f'{operation_name} failed on attempt {attempt}: {str(e)}')
+                if attempt < self.MAX_RETRIES:
+                    wait_time = self.RETRY_DELAY * attempt  # exponential backoff
+                    logger.info(f'Waiting {wait_time}s before retry...')
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f'{operation_name} failed after {self.MAX_RETRIES} attempts')
+                    raise
+    
+    def fetch_trending_dataset(self) -> Optional[Dict[str, Any]]:
+        """Fetch a trending dataset from Kaggle with retry logic"""
         try:
             logger.info('Fetching trending datasets from Kaggle...')
             
-            # Get trending datasets using Kaggle API
-            # Using simpler parameters to avoid parsing errors
-            datasets = self.kaggle_api.dataset_list(
-                sort_by='hottest',
-                file_type='csv'
-            )
+            def _fetch():
+                datasets = self.kaggle_api.dataset_list(
+                    sort_by='hottest',
+                    file_type='csv'
+                )
+                
+                if not datasets:
+                    logger.warning('No trending datasets found')
+                    return None
+                
+                selected_dataset = datasets[0]
+                logger.info(f'Selected dataset: {selected_dataset.ref}')
+                
+                return {
+                    'ref': selected_dataset.ref,
+                    'title': selected_dataset.title,
+                    'description': getattr(selected_dataset, 'subtitle', selected_dataset.title),
+                    'size': getattr(selected_dataset, 'size_bytes', 0),
+                }
             
-            if not datasets:
-                logger.warning('No trending datasets found')
-                return None
-            
-            # Select the first trending dataset
-            selected_dataset = datasets[0]
-            logger.info(f'Selected dataset: {selected_dataset.ref}')
-            
-            return {
-                'ref': selected_dataset.ref,
-                'title': selected_dataset.title,
-                'description': selected_dataset.subtitle if hasattr(selected_dataset, 'subtitle') else selected_dataset.title,
-                'size': selected_dataset.size_bytes if hasattr(selected_dataset, 'size_bytes') else 0,
-            }
-            
+            return self._retry_operation(_fetch, operation_name='Fetch trending dataset')
+        
         except Exception as e:
             logger.error(f'Error fetching trending dataset: {str(e)}')
             return None
     
-    def generate_notebook(self, dataset_info):
-        """Generate a complete Kaggle notebook using Perplexity AI"""
+    def generate_notebook(self, dataset_info: Dict[str, Any]) -> Optional[str]:
+        """Generate a complete Kaggle notebook using Perplexity AI with error handling"""
         try:
             logger.info(f'Generating notebook for dataset: {dataset_info["title"]}')
             
             prompt = f"""Create a professional Kaggle notebook for analyzing the '{dataset_info['title']}' dataset.
-
 Requirements:
 1. Import necessary libraries and load the dataset
 2. Exploratory Data Analysis (EDA) with visualizations
@@ -101,23 +125,26 @@ Requirements:
 6. Model evaluation and comparison with metrics
 7. Key insights and recommendations
 8. Code should be production-ready with proper error handling
-
 Format as a Jupyter notebook structure with markdown and code cells."""
             
-            notebook_content = self.perplexity_generator.generate_notebook_content(prompt)
+            def _generate():
+                return self.perplexity_generator.generate_notebook_content(prompt)
+            
+            notebook_content = self._retry_operation(_generate, operation_name='Generate notebook content')
+            
             if not notebook_content:
                 logger.error('Perplexity returned empty content')
                 return None
             
-            logger.info('Notebook content generated successfully')
+            logger.info(f'Notebook content generated successfully ({len(notebook_content)} chars)')
             return notebook_content
-            
+        
         except Exception as e:
             logger.error(f'Error generating notebook: {str(e)}')
             return None
     
-    def publish_notebook(self, notebook_content, dataset_info):
-        """Publish the generated notebook to Kaggle"""
+    def publish_notebook(self, notebook_content: str, dataset_info: Dict[str, Any]) -> Optional[str]:
+        """Publish the generated notebook to Kaggle with error handling"""
         try:
             logger.info('Publishing notebook to Kaggle...')
             
@@ -125,27 +152,31 @@ Format as a Jupyter notebook structure with markdown and code cells."""
             dataset_name = dataset_info['title'].replace('_', ' ').title()
             notebook_title = f"ML Analysis: {dataset_name} - {datetime.now().strftime('%Y-%m-%d')}"
             
-            publication_url = self.publisher.publish_notebook(
-                title=notebook_title,
-                content=notebook_content,
-                dataset_ref=dataset_info['ref'],
-                is_private=False
-            )
+            def _publish():
+                return self.publisher.publish_notebook(
+                    title=notebook_title,
+                    content=notebook_content,
+                    dataset_ref=dataset_info['ref'],
+                    is_private=False
+                )
+            
+            publication_url = self._retry_operation(_publish, operation_name='Publish notebook')
             
             logger.info(f'Notebook published successfully: {publication_url}')
             return publication_url
-            
+        
         except Exception as e:
             logger.error(f'Error publishing notebook: {str(e)}')
             return None
     
-    def run(self):
-        """Execute the complete workflow"""
+    def run(self) -> bool:
+        """Execute the complete workflow with error handling"""
         try:
-            logger.info('='*60)
+            logger.info('='*80)
             logger.info('Starting Kaggle Daily Notebook Generation Workflow')
             logger.info(f'Execution time: {datetime.now().isoformat()}')
-            logger.info('='*60)
+            logger.info(f'IST Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")}')
+            logger.info('='*80)
             
             # Step 1: Fetch trending dataset
             logger.info('\n[STEP 1] Fetching trending dataset...')
@@ -170,16 +201,16 @@ Format as a Jupyter notebook structure with markdown and code cells."""
                 logger.error('Failed to publish notebook')
                 return False
             
-            logger.info('\n' + '='*60)
+            logger.info('\n' + '='*80)
             logger.info('Workflow completed successfully!')
             logger.info(f'Published at: {publication_url}')
-            logger.info('='*60)
+            logger.info('='*80)
             return True
-            
+        
         except Exception as e:
             logger.error(f'Fatal error in workflow: {str(e)}')
+            logger.exception('Stack trace:')
             return False
-
 
 if __name__ == '__main__':
     try:
@@ -188,4 +219,5 @@ if __name__ == '__main__':
         exit(0 if success else 1)
     except Exception as e:
         logger.error(f'Fatal initialization error: {str(e)}')
+        logger.exception('Stack trace:')
         exit(1)
