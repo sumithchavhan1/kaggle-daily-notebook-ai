@@ -2,6 +2,7 @@
 """
 Main orchestration script for Kaggle Daily Notebook Generation
 Fetches trending datasets, generates notebooks, and publishes them daily at 9 AM IST
+Uses KAGGLE_API_TOKEN for authentication (stored in ~/.kaggle/kaggle.json)
 """
 import os
 import json
