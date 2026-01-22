@@ -3,7 +3,6 @@
 Kaggle Notebook Publishing Module
 Handles publishing of generated notebooks to Kaggle
 """
-
 import os
 import json
 import logging
@@ -23,42 +22,75 @@ class KaggleNotebookPublisher:
         self.temp_dir.mkdir(exist_ok=True)
     
     def publish_notebook(self, title: str, content: str, dataset_ref: str, is_private: bool = False) -> str:
-        """Publish notebook content to Kaggle"""
+        """Publish notebook content to Kaggle with automatic version handling for duplicate titles"""
         try:
             logger.info(f'Publishing notebook: {title}')
             
-            # Save notebook to temporary file
-            notebook_path = self._save_notebook(title, content)
+            # Try to publish with the original title, and if it fails due to conflict, add version suffix
+            original_title = title
+            version = 1
+            current_title = title
+            max_attempts = 10  # Try up to V10
             
-            # Prepare notebook metadata
-            metadata = {
-                "id": f"{self.kaggle_api.read_config_file().get('username')}/notebook-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                "title": title,
-                "code_required": False,
-                "enable_gpu": False,
-                "enable_internet": True,
-                "dataset_sources": [dataset_ref],
-                "competition_sources": [],
-                "kernel_sources": [],
-                "language": "python",
-                "kernel_type": "notebook",
-                "is_private": is_private,
-                "enable_internet": True,
-            "code_file": notebook_path.name
-            }
+            while version <= max_attempts:
+                try:
+                    # Save notebook to temporary file
+                    notebook_path = self._save_notebook(current_title, content)
+                    
+                    # Prepare notebook metadata
+                    metadata = {
+                        "id": f"{self.kaggle_api.read_config_file().get('username')}/notebook-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        "title": current_title,
+                        "code_required": False,
+                        "enable_gpu": False,
+                        "enable_internet": True,
+                        "dataset_sources": [dataset_ref],
+                        "competition_sources": [],
+                        "kernel_sources": [],
+                        "language": "python",
+                        "kernel_type": "notebook",
+                        "is_private": is_private,
+                        "enable_internet": True,
+                        "code_file": notebook_path.name
+                    }
+                    
+                    # Save metadata
+                    metadata_path = self._save_metadata(metadata)
+                    
+                    logger.info(f'Notebook saved to {notebook_path}')
+                    logger.info(f'Metadata saved to {metadata_path}')
+                    
+                    # Push to Kaggle using API
+                    publication_url = self._push_to_kaggle(notebook_path, metadata_path)
+                    
+                    logger.info(f'Notebook published successfully: {publication_url}')
+                    if current_title != original_title:
+                        logger.info(f'Published with modified title: {current_title} (original: {original_title})')
+                    return publication_url
+                    
+                except Exception as e:
+                    error_str = str(e)
+                    # Check if error is due to title conflict (409 error or "already in use" message)
+                    if ('409' in error_str or 'already in use' in error_str or 'Conflict' in error_str) and version < max_attempts:
+                        version += 1
+                        current_title = f"{original_title} - V{version}"
+                        logger.warning(f'Title conflict detected. Retrying with title: {current_title}')
+                        # Clean up the failed attempt
+                        try:
+                            notebook_path_failed = self.temp_dir / f"{original_title.replace(' ', '_').replace(':', '').lower()}.ipynb"
+                            if notebook_path_failed.exists():
+                                notebook_path_failed.unlink()
+                        except:
+                            pass
+                        continue
+                    else:
+                        # Not a conflict error or max attempts reached
+                        logger.error(f'Error publishing notebook: {error_str}')
+                        raise
             
-            # Save metadata
-            metadata_path = self._save_metadata(metadata)
+            # If we get here, we couldn't publish after max attempts
+            raise Exception(f'Failed to publish notebook after {max_attempts} attempts with different titles')
             
-            logger.info(f'Notebook saved to {notebook_path}')
-            logger.info(f'Metadata saved to {metadata_path}')
-            
-            # Push to Kaggle using API
-            publication_url = self._push_to_kaggle(notebook_path, metadata_path)
-            
-            logger.info(f'Notebook published successfully: {publication_url}')
-            return publication_url
-        
         except Exception as e:
             logger.error(f'Error publishing notebook: {str(e)}')
             raise
@@ -79,7 +111,7 @@ class KaggleNotebookPublisher:
             
             logger.info(f'Notebook saved: {filepath}')
             return filepath
-        
+            
         except Exception as e:
             logger.error(f'Error saving notebook: {str(e)}')
             raise
@@ -94,7 +126,7 @@ class KaggleNotebookPublisher:
             
             logger.info(f'Metadata saved: {metadata_path}')
             return metadata_path
-        
+            
         except Exception as e:
             logger.error(f'Error saving metadata: {str(e)}')
             raise
@@ -104,7 +136,7 @@ class KaggleNotebookPublisher:
         try:
             logger.info('Pushing notebook to Kaggle...')
             
-        # Use kaggle kernel push command
+            # Use kaggle kernel push command
             # Create a notebook slug from title
             notebook_slug = notebook_path.stem
             username = self.kaggle_api.read_config_file().get('username', 'user')
@@ -133,6 +165,6 @@ class KaggleNotebookPublisher:
             import shutil
             if self.temp_dir.exists():
                 shutil.rmtree(self.temp_dir)
-                logger.info('Cleaned up temporary files')
+            logger.info('Cleaned up temporary files')
         except Exception as e:
             logger.warning(f'Error during cleanup: {str(e)}')
