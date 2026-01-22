@@ -1,93 +1,174 @@
-import os
+"""Call Perplexity API to generate comprehensive notebook cells."""
 import json
+import os
+from typing import Any, Dict, List, Optional
+
 import requests
 
-def call_perplexity_for_notebook(dataset_meta):
-    """Call Perplexity API to generate comprehensive notebook JSON with all cells"""
-    api_key = os.getenv("PERPLEXITY_API_KEY")
-    dataset_slug = dataset_meta['dataset_slug']
-    dataset_title = dataset_meta['dataset_title']
-    dataset_path = f"/kaggle/input/{dataset_slug.split('/')[1]}/"
-    
-    # Simplified prompt without embedded code blocks to avoid API errors
-    user_prompt = f"""Generate a complete professional Kaggle notebook analyzing the dataset: {dataset_title}
 
-Dataset path: {dataset_path}
+PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
+DEFAULT_MODEL = "pplx-7b-online"
 
-Create a comprehensive ML analysis notebook with 18-22 cells including:
 
-1. Introduction markdown with title and dataset overview
-2. Import all necessary libraries: pandas, numpy, matplotlib, seaborn, sklearn, xgboost
-3. Load the dataset from the path above
-4. Display dataset shape and basic info
-5. Show first few rows of data
-6. Check for missing values and visualize if present
-7. Statistical summary of numeric columns
-8. Distribution plots for key numeric features
-9. Correlation heatmap
-10. Categorical variable analysis with count plots
-11. Feature relationships visualization
-12. Data preprocessing and feature engineering
-13. Split data into train and test sets 80-20
-14. Train RandomForest model
-15. Evaluate RandomForest with metrics and confusion matrix
-16. Train XGBoost model
-17. Evaluate XGBoost with metrics and feature importance
-18. Compare both models with visualizations
-19. Final conclusions and recommendations
+class PerplexityNotebookClient:
+    """
+    Thin client around Perplexity Chat Completions API to generate
+    Jupyter notebook cells for a given Kaggle dataset.
+    """
 
-IMPORTANT REQUIREMENTS:
-- Output ONLY valid JSON, no markdown code blocks
-- NO placeholders or comments like TODO or your code here
-- All code must be complete and executable
-- Use realistic column names like date, price, quantity, category, etc
-- Include proper error handling
-- Add helpful markdown explanations between code cells
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = DEFAULT_MODEL,
+        timeout: int = 60,
+    ) -> None:
+        self.api_key = api_key or os.getenv("PERPLEXITY_API_KEY")
+        if not self.api_key:
+            raise ValueError("PERPLEXITY_API_KEY is not set.")
+        self.model = model
+        self.timeout = timeout
 
-JSON structure:
-{{
-    "notebook_title": "Professional ML Analysis: {dataset_title}",
-    "notebook_slug": "ml-analysis-{dataset_slug.split('/')[1]}",
-    "description": "Comprehensive machine learning analysis with EDA, visualizations, RandomForest, and XGBoost models",
-    "cells": [
-        {{"type": "markdown", "content": "markdown text here"}},
-        {{"type": "code", "content": "python code here"}}
-    ]
-}}
-
-Generate the complete JSON now with all cells filled:"""
-
-    try:
-        print(f"📡 Calling Perplexity API for comprehensive notebook...")
-        response = requests.post(
-            "https://api.perplexity.ai/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.1-sonar-large-128k-online",
-                "messages": [{"role": "user", "content": user_prompt}],
-                "temperature": 0.3,
-                "max_tokens": 12000
-            },
-            timeout=120
+    def _build_system_prompt(self) -> str:
+        """System prompt: how the assistant should behave and format output."""
+        return (
+            "You are a senior Kaggle Grandmaster data scientist.\n"
+            "Generate a COMPLETE Jupyter notebook for Kaggle in JSON form, as a list of cells.\n\n"
+            "Constraints:\n"
+            "- Output ONLY valid JSON (no backticks, no explanation).\n"
+            "- JSON must be a list of cell objects.\n"
+            "- Each cell object must have: 'cell_type', 'metadata', 'source' (list of strings).\n"
+            "- Do NOT include 'execution_count' or 'outputs'.\n\n"
+            "Notebook style:\n"
+            "- Professional, production-ready analysis for Kaggle.\n"
+            "- Clear sections: title, EDA, visualizations, feature engineering, modeling, evaluation, conclusion.\n"
+            "- Use idiomatic pandas, numpy, matplotlib, seaborn, sklearn.\n"
+            "- Add comments in code cells explaining key steps.\n"
+            "- Avoid unnecessary prints; focus on useful outputs.\n"
         )
-        
-        response.raise_for_status()
-        response_data = response.json()
-        notebook_json_str = response_data['choices'][0]['message']['content']
-        
-        # Parse JSON - handle markdown code blocks
-        if "```json" in notebook_json_str:
-            notebook_json_str = notebook_json_str.split("```json")[1].split("```")[0]
-        elif "```" in notebook_json_str:
-            notebook_json_str = notebook_json_str.split("```")[1].split("```")[0]
-        
-        notebook_spec = json.loads(notebook_json_str.strip())
-        print(f"✓ Generated notebook with {len(notebook_spec.get('cells', []))} cells")
-        return notebook_spec
-        
-    except Exception as e:
-        print(f"✗ Error: {str(e)}")
-        raise
+
+    def _build_user_prompt(self, dataset_meta: Dict[str, Any]) -> str:
+        """User prompt: describe this particular dataset and desired workflow."""
+        title = dataset_meta.get("title", "Kaggle Dataset")
+        slug = dataset_meta.get("dataset_slug", "")
+        file_path = dataset_meta.get("file_path", "kaggle/input/dataset/file.csv")
+        target = dataset_meta.get("target_column", "")
+        task = dataset_meta.get("task_type", "auto")
+        description = dataset_meta.get("description", "")
+
+        lines = [
+            f"Title: {title}\n",
+            f"Dataset slug: {slug}\n",
+            f"CSV path (for Kaggle): {file_path}\n",
+            f"Target column: {target}\n",
+            f"Task type: {task}\n",
+            "\n",
+            "Goal:\n",
+            "- Generate a complete Kaggle notebook that loads this dataset, performs strong EDA and builds at least one baseline ML model.\n",
+            "- Match the style of polished Kaggle notebooks with:\n",
+            "  * Markdown title and description.\n",
+            "  * Import cell with numpy, pandas, matplotlib, seaborn, sklearn, scipy if needed.\n",
+            "  * Data loading cell using the given CSV path.\n",
+            "  * Data overview (head, info, describe, missing values, duplicates).\n",
+            "  * Visualizations: distributions, correlations, time-series or category plots as appropriate.\n",
+            "  * Feature engineering and encoding where needed.\n",
+            "  * Train/test split.\n",
+            "  * At least one model (e.g., LinearRegression / RandomForest / GradientBoosting for regression or classifiers for classification).\n",
+            "  * Metrics and model comparison (R2/RMSE/MAE for regression, accuracy/F1/ROC-AUC for classification).\n",
+            "  * Feature importance plots if model supports it.\n",
+            "  * Final conclusion markdown summarizing key insights.\n",
+            "\n",
+            "Technical requirements:\n",
+            "- Use a single main DataFrame named 'df'.\n",
+            "- Use seaborn and matplotlib for all plots.\n",
+            "- Use 'train_test_split' from sklearn.model_selection.\n",
+            "- Use clear variable names and comments.\n",
+            "- Do NOT include any magic commands except '%matplotlib inline' if needed.\n",
+            "- Assume the notebook runs on Kaggle with the dataset available at the given path.\n",
+            "\n",
+            "Output format:\n",
+            "- ONLY output JSON (no backticks, no markdown around it).\n",
+            "- JSON is a list of cell dicts with 'cell_type', 'metadata', and 'source' as list of lines.\n",
+        ]
+        if description:
+            lines.insert(1, f"Short dataset description: {description}\n")
+        return "".join(lines)
+
+    def call_api(self, dataset_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Call Perplexity and return parsed cell list."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": self._build_system_prompt()},
+                {"role": "user", "content": self._build_user_prompt(dataset_meta)},
+            ],
+            "temperature": 0.4,
+            "max_tokens": 4096,
+            "top_p": 0.9,
+        }
+
+        resp = requests.post(
+            PERPLEXITY_API_URL,
+            headers=headers,
+            json=payload,
+            timeout=self.timeout,
+        )
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Perplexity API error {resp.status_code}: {resp.text}"
+            )
+
+        data = resp.json()
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError) as exc:
+            raise RuntimeError(f"Unexpected API response format: {data}") from exc
+
+        # content should be JSON string (list of cells)
+        try:
+            cells = json.loads(content)
+        except json.JSONDecodeError as exc:
+            # Optional: try to salvage by stripping backticks if model added them
+            text = content.strip()
+            if text.startswith("```"):
+                text = text.strip("`")
+                if "\n" in text:
+                    text = "\n".join(text.split("\n")[1:])
+            try:
+                cells = json.loads(text)
+            except json.JSONDecodeError as exc2:
+                raise RuntimeError(
+                    f"Failed to parse notebook JSON from model output: {exc2}\n\nRaw content:\n{content[:2000]}"
+                ) from exc
+
+        if not isinstance(cells, list):
+            raise RuntimeError("Model output is not a list of cells.")
+
+        return cells
+
+
+def generate_notebook_cells(dataset_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Public function used by the orchestrator."""
+    client = PerplexityNotebookClient()
+    return client.call_api(dataset_meta)
+
+
+if __name__ == "__main__":
+    # Simple local test
+    example_meta = {
+        "title": "Sample Dataset",
+        "dataset_slug": "user/sample-dataset",
+        "file_path": "kaggle/input/sample-dataset/file.csv",
+        "target_column": "target",
+        "task_type": "classification",
+        "description": "Sample dataset for testing.",
+    }
+
+    cells = generate_notebook_cells(example_meta)
+    print(f"Generated {len(cells)} cells")
+    print(json.dumps(cells[:2], indent=2))  # Print first 2 cells
