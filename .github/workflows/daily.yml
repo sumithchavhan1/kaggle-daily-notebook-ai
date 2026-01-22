@@ -38,7 +38,7 @@ jobs:
 
       - name: Run daily notebook generation
         run: |
-          python scripts/orchestrate_automation.py
+          python main.py
 
       - name: Commit and push generated notebooks
         if: always()
