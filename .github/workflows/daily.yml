@@ -1,8 +1,7 @@
 name: Daily Kaggle Trending Notebook
-
 on:
   schedule:
-    - cron: "30 3 * * *"
+    - cron: "30 3 * * *"  # Runs at 3:30 AM UTC (9 AM IST)
   workflow_dispatch:
 
 jobs:
@@ -12,32 +11,83 @@ jobs:
       KAGGLE_CONFIG_JSON: ${{ secrets.KAGGLE_CONFIG_JSON }}
       PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
       TZ: Asia/Kolkata
+      GIT_RETRY_ATTEMPTS: 5
+      GIT_RETRY_DELAY: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git config --global http.postBuffer 524288000
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 999999
+          echo "Git configured with retry settings"
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Configure Kaggle API
         run: |
           mkdir -p ~/.kaggle
           echo "${KAGGLE_CONFIG_JSON}" > ~/.kaggle/kaggle.json
           chmod 600 ~/.kaggle/kaggle.json
+
       - name: Run daily notebook generation
         run: |
           python main.py
+        continue-on-error: true
+
       - name: Commit and push generated notebooks
+        run: |
+          git add trending_notebooks/ || true
+          git status
+          
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git commit -m "Auto-generated notebook - $(date +'%Y-%m-%d %H:%M:%S IST')" || true
+          
+          for i in {1..5}; do
+            echo "Attempt $i of 5 to push to origin"
+            if git push origin main --force-with-lease; then
+              echo "Push successful on attempt $i"
+              exit 0
+            else
+              if [ $i -lt 5 ]; then
+                WAIT_TIME=$((30 + RANDOM % 30))
+                echo "Push failed. Waiting ${WAIT_TIME}s before retry..."
+                sleep ${WAIT_TIME}
+                # Refresh branch before retry
+                git fetch origin main
+                git reset --hard origin/main
+              fi
+            fi
+          done
+          
+          echo "Failed to push after 5 attempts"
+          exit 1
+        continue-on-error: true
+
+      - name: Log workflow status
         if: always()
         run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-          git add trending_notebooks/
-          git commit -m "Auto-generated notebook - $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
-          git push origin main || echo "Nothing to push"
-        continue-on-error: true
+          echo "Workflow Status:"
+          echo "- Job Status: ${{ job.status }}"
+          echo "- Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "- IST Time: $(date +'%Y-%m-%d %H:%M:%S IST')"
