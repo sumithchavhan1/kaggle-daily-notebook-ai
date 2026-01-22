@@ -30,14 +30,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-- name: Configure Kaggle API
-      run: |
-        mkdir -p ~/.kaggle
-        # Create kaggle.json using environment variables
-        python3 -c "import json, os; json.dump({'username': os.environ['KAGGLE_USERNAME'], 'key': os.environ['KAGGLE_KEY']}, open(os.path.expanduser('~/.kaggle/kaggle.json'), 'w'))"
-        chmod 600 ~/.kaggle/kaggle.json
-        # Validate credentials
-        python3 -c "from kaggle.api.kaggle_api_extended import KaggleApi; api = KaggleApi(); api.authenticate(); print('Kaggle API authenticated successfully')"
+      - name: Configure Kaggle API
+        run: |
+          mkdir -p ~/.kaggle
+          python3 -c "import json, os; json.dump({'username': os.environ['KAGGLE_USERNAME'], 'key': os.environ['KAGGLE_KEY']}, open(os.path.expanduser('~/.kaggle/kaggle.json'), 'w'))"
+          chmod 600 ~/.kaggle/kaggle.json
+          python3 -c "from kaggle.api.kaggle_api_extended import KaggleApi; api = KaggleApi(); api.authenticate(); print('Kaggle API authenticated successfully')"
+
       - name: Run daily notebook generation
         run: |
           python main.py
