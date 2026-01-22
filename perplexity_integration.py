@@ -27,11 +27,13 @@ class PerplexityNotebookGenerator:
                 "Content-Type": "application/json"
             }
             
+            # Combine system and user prompts into a single user message
+            combined_prompt = "You are an expert data scientist.\n\n" + prompt
+            
             payload = {
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": "You are an expert data scientist."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": combined_prompt}
                 ],
                 "temperature": 0.7,
                 "max_tokens": 3000
@@ -48,7 +50,7 @@ class PerplexityNotebookGenerator:
             
             logger.error(f'API error {response.status_code}')
             return self._generate_template_notebook()
-            
+        
         except Exception as e:
             logger.error(f'Error: {str(e)}')
             return self._generate_template_notebook()
