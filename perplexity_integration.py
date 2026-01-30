@@ -57,28 +57,69 @@ class PerplexityNotebookGenerator:
             logger.error(f'Groq API error: {str(e)}')
             return self._generate_template_notebook()
     
-    def _format_notebook_content(self, content: str) -> str:
-        """Format content into notebook structure"""
+        def _format_notebook_content(self, content: str) -> str:
+        """Format Groq content into a clean nbformat-4 notebook."""
+        # Normalize newlines
+        text = content.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Add spacing before headings so they don't stick to previous text
+        text = text.replace("## ", "\n\n## ").replace("### ", "\n\n### ")
+
+        def markdown_cell(text_block: str) -> Dict:
+            block = text_block.strip()
+            if not block:
+                return None
+            # keep line breaks
+            lines = block.split("\n")
+            return {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [ln + "\n" for ln in lines],
+            }
+
+        def code_cell(code_block: str) -> Dict:
+            block = code_block.strip()
+            if not block:
+                return None
+            # strip optional language tag at top
+            lines = block.split("\n")
+            if lines and lines[0].strip().lower() in ("python", "python3"):
+                lines = lines[1:]
+            return {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [ln + "\n" for ln in lines],
+            }
+
         notebook = {
             "cells": [],
-            "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3",
+                }
+            },
             "nbformat": 4,
-            "nbformat_minor": 4
+            "nbformat_minor": 4,
         }
-        
-        sections = content.split('```')
-        for i, section in enumerate(sections):
-            section = section.strip()
-            if not section: continue
-            
+
+        # Split by ``` fences into markdown/code blocks
+        blocks = text.split("```")
+        for i, block in enumerate(blocks):
+            if not block.strip():
+                continue
             if i % 2 == 0:
-                notebook['cells'].append({"cell_type": "markdown", "metadata": {}, "source": section.split('\n')})
+                cell = markdown_cell(block)
             else:
-                lines = section.split('\n')
-                code_start = 1 if lines and lines[0].lower() in ['python', 'python3'] else 0
-                notebook['cells'].append({"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": '\n'.join(lines[code_start:]).split('\n')})
-        
+                cell = code_cell(block)
+            if cell:
+                notebook["cells"].append(cell)
+
         return json.dumps(notebook, indent=2)
+
     
     def _generate_template_notebook(self) -> str:
         """Generate template notebook as fallback"""
