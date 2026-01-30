@@ -187,7 +187,7 @@ Format as a Jupyter notebook structure with markdown and code cells."""
             logger.info(f'Selected dataset: {dataset_info["ref"]}')
             
             # Step 2: Generate notebook content
-            logger.info('\n[STEP 2] Generating notebook content with Perplexity AI...')
+            logger.info('\n[STEP 2] Generating notebook content with Groq AI...')
             notebook_content = self.generate_notebook(dataset_info)
             if not notebook_content:
                 logger.error('Failed to generate notebook content')
