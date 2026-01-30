@@ -44,10 +44,21 @@ class PerplexityNotebookGenerator:
                 max_tokens=4000
             )
             
-            if response and response.choices:
+                if response and response.choices:
                 content = response.choices[0].message.content
                 if content:
                     logger.info('Successfully generated notebook content with Groq')
+
+                    # NEW: if Groq already returned nbformat JSON, just return it
+                    try:
+                        parsed = json.loads(content)
+                        if isinstance(parsed, dict) and "cells" in parsed and "nbformat" in parsed:
+                            logger.info("Groq returned nbformat JSON notebook; using as-is")
+                            return json.dumps(parsed, indent=2)
+                    except Exception:
+                        # Not JSON; fall back to our formatter
+                        pass
+
                     return self._format_notebook_content(content)
             
             logger.error('Groq API returned empty content')
