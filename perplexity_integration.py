@@ -15,7 +15,7 @@ class PerplexityNotebookGenerator:
         """Initialize with Groq API key"""
         self.api_key = api_key
         self.base_url = "https://api.groq.com/openai/v1"
-        self.model = "llama-3.1-70b-versatile"
+        self.model = "llama-3.3-70b-versatile"
         self.timeout = 60
         # Initialize OpenAI client with Groq endpoint
         # Create HTTP client without proxies to avoid compatibility issues
