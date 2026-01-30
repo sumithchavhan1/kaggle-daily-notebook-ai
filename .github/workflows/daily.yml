@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       KAGGLE_CONFIG_JSON: ${{ secrets.KAGGLE_CONFIG_JSON }}
-      GROQ_API_KEY: ${{ secrets.Kaggle_Groq }}
+      GROQ_API_KEY: ${{ secrets.KAGGLE_GROQ }}
       TZ: Asia/Kolkata
       GIT_RETRY_ATTEMPTS: 5
       GIT_RETRY_DELAY: 30
