@@ -111,11 +111,19 @@ class KaggLeNotebookOrchestrator:
             return None
     
     def generate_notebook(self, dataset_info: Dict[str, Any]) -> Optional[str]:
-        """Generate a complete Kaggle notebook using Perplexity AI with error handling"""
+        """Generate a complete Kaggle notebook using Groq AI with error handling"""
         try:
             logger.info(f'Generating notebook for dataset: {dataset_info["title"]}')
             
             prompt = f"""Create a professional Kaggle notebook for analyzing the '{dataset_info['title']}' dataset.
+STRICT FORMAT REQUIREMENTS:
+- Output ONLY a Jupyter notebook in JSON matching nbformat 4.
+- Use separate markdown and code cells.
+- Do NOT wrap JSON in backticks or any prose.
+- Use clean markdown headings (##, ###) and short paragraphs.
+- Break long code into multiple cells (imports, EDA, preprocessing, modeling, evaluation).
+- Use black-compatible, PEP8-style Python code.
+
 Requirements:
 1. Import necessary libraries and load the dataset
 2. Exploratory Data Analysis (EDA) with visualizations
