@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       KAGGLE_CONFIG_JSON: ${{ secrets.KAGGLE_CONFIG_JSON }}
-      PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       TZ: Asia/Kolkata
       GIT_RETRY_ATTEMPTS: 5
       GIT_RETRY_DELAY: 30
