@@ -1,6 +1,4 @@
-requests==2.31.0
-python-dotenv==1.0.0
-nbformat==5.10.4
+openai==1.54.5
 kaggle==1.6.14
 pandas==2.1.4
 numpy==1.26.3
