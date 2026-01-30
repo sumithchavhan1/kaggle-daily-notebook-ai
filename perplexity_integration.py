@@ -57,7 +57,7 @@ class PerplexityNotebookGenerator:
             logger.error(f'Groq API error: {str(e)}')
             return self._generate_template_notebook()
     
-        def _format_notebook_content(self, content: str) -> str:
+            def _format_notebook_content(self, content: str) -> str:
         """Format Groq content into a clean nbformat-4 notebook."""
         # Normalize newlines
         text = content.replace("\r\n", "\n").replace("\r", "\n")
@@ -119,7 +119,6 @@ class PerplexityNotebookGenerator:
                 notebook["cells"].append(cell)
 
         return json.dumps(notebook, indent=2)
-
     
     def _generate_template_notebook(self) -> str:
         """Generate template notebook as fallback"""
