@@ -3,56 +3,54 @@ import json
 import logging
 import time
 from typing import Dict
-import requests
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
 class PerplexityNotebookGenerator:
-    """Generate notebook content using Perplexity AI API"""
+    """Generate notebook content using Groq AI API (OpenAI compatible)"""
     
     def __init__(self, api_key: str):
-        """Initialize with Perplexity API key"""
+        """Initialize with Groq API key"""
         self.api_key = api_key
-        self.base_url = "https://api.perplexity.ai/chat/completions"
-        self.model = "pplx-70b-online"
+        self.base_url = "https://api.groq.com/openai/v1"
+        self.model = "llama-3.1-70b-versatile"
         self.timeout = 60
+        # Initialize OpenAI client with Groq endpoint
+        self.client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url
+        )
     
     def generate_notebook_content(self, prompt: str) -> str:
-        """Generate notebook content from prompt"""
+        """Generate notebook content from prompt using Groq"""
         try:
-            logger.info('Calling Perplexity API for notebook generation...')
+            logger.info('Calling Groq API for notebook generation...')
             
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
+            # Combine system and user prompts
+            system_prompt = "You are an expert data scientist and machine learning engineer. Generate complete, production-ready Jupyter notebook code with proper markdown documentation."
             
-            # Combine system and user prompts into a single user message
-            combined_prompt = "You are an expert data scientist.\n\n" + prompt
-            
-            payload = {
-                "model": self.model,
-                "messages": [
-                    {"role": "user", "content": combined_prompt}
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.7,
-                "max_tokens": 3000
-            }
+                temperature=0.7,
+                max_tokens=4000
+            )
             
-            response = requests.post(self.base_url, headers=headers, json=payload, timeout=self.timeout)
-            
-            if response.status_code == 200:
-                data = response.json()
-                content = data.get('choices', [{}])[0].get('message', {}).get('content', '')
+            if response and response.choices:
+                content = response.choices[0].message.content
                 if content:
-                    logger.info('Successfully generated notebook content')
+                    logger.info('Successfully generated notebook content with Groq')
                     return self._format_notebook_content(content)
             
-            logger.error(f'API error {response.status_code}')
+            logger.error('Groq API returned empty content')
             return self._generate_template_notebook()
         
         except Exception as e:
-            logger.error(f'Error: {str(e)}')
+            logger.error(f'Groq API error: {str(e)}')
             return self._generate_template_notebook()
     
     def _format_notebook_content(self, content: str) -> str:
@@ -79,7 +77,7 @@ class PerplexityNotebookGenerator:
         return json.dumps(notebook, indent=2)
     
     def _generate_template_notebook(self) -> str:
-        """Generate template notebook"""
+        """Generate template notebook as fallback"""
         logger.info('Generating template notebook')
         notebook = {
             "cells": [{"cell_type": "markdown", "metadata": {}, "source": ["# Kaggle Notebook: ML Analysis"]}, {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": ["import pandas as pd\n", "import numpy as np"]}],
