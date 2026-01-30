@@ -44,7 +44,7 @@ class PerplexityNotebookGenerator:
                 max_tokens=4000
             )
             
-                if response and response.choices:
+            if response and response.choices:
                 content = response.choices[0].message.content
                 if content:
                     logger.info('Successfully generated notebook content with Groq')
