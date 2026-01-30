@@ -4,6 +4,7 @@ import logging
 import time
 from typing import Dict
 from openai import OpenAI
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,12 @@ class PerplexityNotebookGenerator:
         self.model = "llama-3.1-70b-versatile"
         self.timeout = 60
         # Initialize OpenAI client with Groq endpoint
+        # Create HTTP client without proxies to avoid compatibility issues
+                http_client = httpx.Client(proxies=None)
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+                        http_client=http_client
         )
     
     def generate_notebook_content(self, prompt: str) -> str:
