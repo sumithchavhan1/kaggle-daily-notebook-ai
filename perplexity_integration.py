@@ -1,73 +1,83 @@
 #!/usr/bin/env python3
 import json
 import logging
-import time
 from typing import Dict
 from openai import OpenAI
 import httpx
 
 logger = logging.getLogger(__name__)
 
+
 class PerplexityNotebookGenerator:
-    """Generate notebook content using Groq AI API (OpenAI compatible)"""
-    
+    """Generate notebook content using Groq AI API (OpenAI compatible)."""
+
     def __init__(self, api_key: str):
-        """Initialize with Groq API key"""
+        """Initialize with Groq API key."""
         self.api_key = api_key
         self.base_url = "https://api.groq.com/openai/v1"
         self.model = "llama-3.3-70b-versatile"
         self.timeout = 60
-        # Initialize OpenAI client with Groq endpoint
-        # Create HTTP client without proxies to avoid compatibility issues
+
+        # HTTP client without proxies to avoid compatibility issues
         http_client = httpx.Client()
+
+        # OpenAI-compatible client pointed at Groq
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
-                        http_client=http_client
+            http_client=http_client,
         )
-    
+
     def generate_notebook_content(self, prompt: str) -> str:
-        """Generate notebook content from prompt using Groq"""
+        """Generate notebook content from prompt using Groq."""
         try:
-            logger.info('Calling Groq API for notebook generation...')
-            
-            # Combine system and user prompts
-            system_prompt = "You are an expert data scientist and machine learning engineer. Generate complete, production-ready Jupyter notebook code with proper markdown documentation."
-            
+            logger.info("Calling Groq API for notebook generation...")
+
+            system_prompt = (
+                "You are an expert data scientist and machine learning engineer. "
+                "Generate complete, production-ready Jupyter notebook code with "
+                "proper markdown documentation."
+            )
+
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=4000
+                max_tokens=4000,
             )
-            
+
             if response and response.choices:
                 content = response.choices[0].message.content
                 if content:
-                    logger.info('Successfully generated notebook content with Groq')
+                    logger.info("Successfully generated notebook content with Groq")
 
-                    # NEW: if Groq already returned nbformat JSON, just return it
+                    # If Groq already returns a full nbformat JSON notebook, use it as-is
                     try:
                         parsed = json.loads(content)
-                        if isinstance(parsed, dict) and "cells" in parsed and "nbformat" in parsed:
+                        if (
+                            isinstance(parsed, dict)
+                            and "cells" in parsed
+                            and "nbformat" in parsed
+                        ):
                             logger.info("Groq returned nbformat JSON notebook; using as-is")
                             return json.dumps(parsed, indent=2)
                     except Exception:
                         # Not JSON; fall back to our formatter
                         pass
 
+                    # Groq returned markdown/code text -> convert to notebook
                     return self._format_notebook_content(content)
-            
-            logger.error('Groq API returned empty content')
+
+            logger.error("Groq API returned empty content")
             return self._generate_template_notebook()
-        
+
         except Exception as e:
-            logger.error(f'Groq API error: {str(e)}')
+            logger.error(f"Groq API error: {str(e)}")
             return self._generate_template_notebook()
-    
+
     def _format_notebook_content(self, content: str) -> str:
         """Format Groq content into a clean nbformat-4 notebook."""
         # Normalize newlines
@@ -91,7 +101,8 @@ class PerplexityNotebookGenerator:
             block = code_block.strip()
             if not block:
                 return None
-            lines = block.split("\n")
+            lines = code_block.split("\n")
+            # strip optional language tag at top
             if lines and lines[0].strip().lower() in ("python", "python3"):
                 lines = lines[1:]
             return {
@@ -115,6 +126,7 @@ class PerplexityNotebookGenerator:
             "nbformat_minor": 4,
         }
 
+        # Split by ``` fences into markdown / code blocks
         blocks = text.split("```")
         for i, block in enumerate(blocks):
             if not block.strip():
@@ -127,14 +139,33 @@ class PerplexityNotebookGenerator:
                 notebook["cells"].append(cell)
 
         return json.dumps(notebook, indent=2)
-    
+
     def _generate_template_notebook(self) -> str:
-        """Generate template notebook as fallback"""
-        logger.info('Generating template notebook')
+        """Generate template notebook as fallback."""
+        logger.info("Generating template notebook")
         notebook = {
-            "cells": [{"cell_type": "markdown", "metadata": {}, "source": ["# Kaggle Notebook: ML Analysis"]}, {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": ["import pandas as pd\n", "import numpy as np"]}],
-            "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
+            "cells": [
+                {
+                    "cell_type": "markdown",
+                    "metadata": {},
+                    "source": ["# Kaggle Notebook: ML Analysis\n"],
+                },
+                {
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {},
+                    "outputs": [],
+                    "source": ["import pandas as pd\n", "import numpy as np\n"],
+                },
+            ],
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3",
+                }
+            },
             "nbformat": 4,
-            "nbformat_minor": 4
+            "nbformat_minor": 4,
         }
         return json.dumps(notebook, indent=2)
