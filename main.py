@@ -201,9 +201,19 @@ GENERAL GUIDELINES:
         try:
             logger.info("Publishing notebook to Kaggle...")
 
-            # Create notebook title with dataset name
+            # Create Kaggle‑safe, short title (<= 50 chars)
             dataset_name = dataset_info["title"].replace("_", " ").title()
-            notebook_title = f"ML Analysis: {dataset_name} - {datetime.now().strftime('%Y-%m-%d')}"
+            date_str = datetime.now().strftime("%Y-%m-%d")
+
+            # Base title without "ML Analysis:"
+            base_title = dataset_name
+
+            # Reserve space for " - YYYY-MM-DD" (13 chars)
+            max_base_len = 50 - 13
+            if len(base_title) > max_base_len:
+                base_title = base_title[: max_base_len - 3].rstrip() + "..."
+
+            notebook_title = f"{base_title} - {date_str}"
 
             def _publish():
                 return self.publisher.publish_notebook(
