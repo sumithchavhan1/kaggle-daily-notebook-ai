@@ -119,25 +119,67 @@ class KaggLeNotebookOrchestrator:
         try:
             logger.info(f"Generating notebook for dataset: {dataset_info['title']}")
 
-            prompt = f"""Create a professional Kaggle notebook for analyzing the '{dataset_info['title']}' dataset.
-STRICT FORMAT REQUIREMENTS:
-- Output ONLY a Jupyter notebook in JSON matching nbformat 4.
-- Use separate markdown and code cells.
-- Do NOT wrap JSON in backticks or any prose.
-- Use clean markdown headings (##, ###) and short paragraphs.
-- Break long code into multiple cells (imports, EDA, preprocessing, modeling, evaluation).
-- Use black-compatible, PEP8-style Python code.
+            prompt = f"""
+You are a Kaggle Grandmaster data scientist.
 
-Requirements:
-1. Import necessary libraries and load the dataset
-2. Exploratory Data Analysis (EDA) with visualizations
-3. Data cleaning and preprocessing
-4. Feature engineering
-5. Implement 2-3 machine learning models (e.g., Linear Regression, Random Forest, Gradient Boosting)
-6. Model evaluation and comparison with metrics
-7. Key insights and recommendations
-8. Code should be production-ready with proper error handling
-Format as a Jupyter notebook structure with markdown and code cells."""
+Create a top-quality Kaggle notebook for the dataset '{dataset_info['title']}'.
+
+GOAL:
+- Produce a clear, teachable, competition-ready analysis similar in depth and structure to high‑quality Kaggle notebooks.
+- Make it easy for readers to learn from the code and text.
+
+STRICT OUTPUT FORMAT:
+- Output ONLY a valid Jupyter notebook in JSON (nbformat 4), no backticks, no extra text.
+- Use multiple markdown and code cells (not one giant cell).
+- Use clean headings: #, ##, ### with short paragraphs and bullet points.
+- Code must be PEP8‑style, well‑commented, and logically split into cells.
+
+NOTEBOOK STRUCTURE:
+
+1. INTRO & CONTEXT (markdown)
+   - Title with dataset name and date.
+   - Brief overview of the problem and what insights/models you will build.
+   - Mention key questions you will answer.
+
+2. SETUP & DATA LOADING
+   - Code cell: imports (pandas, numpy, matplotlib, seaborn, sklearn, etc.).
+   - Code cell: load the main CSV (assume file is in working directory, infer filename if possible).
+   - Quick info: shape, dtypes, head, basic .info() and .describe().
+
+3. EXPLORATORY DATA ANALYSIS (EDA)
+   - Markdown explaining the EDA plan.
+   - Code + plots: missing values, distributions, correlations, time trends if relevant, categorical vs target relationships.
+   - Use readable plots with titles, labels, and tight_layout().
+
+4. DATA CLEANING & PREPROCESSING
+   - Handle missing values, outliers, type conversions, and encoding of categoricals.
+   - Train/test split with clear explanation.
+   - Scaling/normalization where appropriate.
+
+5. FEATURE ENGINEERING
+   - Create meaningful new features (date parts, ratios, interactions, aggregations) based on dataset context.
+   - Explain each important engineered feature in markdown.
+
+6. MODELING
+   - Train at least 2–3 models (e.g., Linear/Logistic Regression, Random Forest, Gradient Boosting or XGBoost/LightGBM if installed).
+   - Use a consistent evaluation setup (cross‑validation or train/validation split).
+   - Show feature importance for tree‑based models when applicable.
+
+7. EVALUATION & COMPARISON
+   - Compare models using appropriate metrics (e.g., RMSE/MAE for regression, accuracy/F1/AUC for classification).
+   - Present results in a small, readable table.
+   - Discuss which model performs best and why.
+
+8. INSIGHTS & CONCLUSIONS
+   - Summarize key data insights and model findings.
+   - Suggest possible next steps or improvements (e.g., more features, tuning, external data).
+
+GENERAL GUIDELINES:
+- Use try/except only where genuinely useful; avoid hiding errors.
+- Prefer simple, robust code over overly clever tricks.
+- Comment non‑obvious steps.
+- Avoid hard‑coding paths other than the main CSV in the current directory.
+"""
             def _generate():
                 return self.perplexity_generator.generate_notebook_content(prompt)
 
@@ -190,7 +232,7 @@ Format as a Jupyter notebook structure with markdown and code cells."""
             logger.info("=" * 80)
 
             # Step 1: Fetch trending dataset
-            logger.info("\n[STEP 1] Fetching trending dataset...")
+            logger.info("\\n[STEP 1] Fetching trending dataset...")
             dataset_info = self.fetch_trending_dataset()
             if not dataset_info:
                 logger.error("Failed to fetch trending dataset")
@@ -198,7 +240,7 @@ Format as a Jupyter notebook structure with markdown and code cells."""
             logger.info(f"Selected dataset: {dataset_info['ref']}")
 
             # Step 2: Generate notebook content
-            logger.info("\n[STEP 2] Generating notebook content with Groq AI...")
+            logger.info("\\n[STEP 2] Generating notebook content with Groq AI...")
             notebook_content = self.generate_notebook(dataset_info)
             if not notebook_content:
                 logger.error("Failed to generate notebook content")
@@ -206,13 +248,13 @@ Format as a Jupyter notebook structure with markdown and code cells."""
             logger.info(f"Generated {len(notebook_content)} characters of notebook content")
 
             # Step 3: Publish to Kaggle
-            logger.info("\n[STEP 3] Publishing notebook to Kaggle...")
+            logger.info("\\n[STEP 3] Publishing notebook to Kaggle...")
             publication_url = self.publish_notebook(notebook_content, dataset_info)
             if not publication_url:
                 logger.error("Failed to publish notebook")
                 return False
 
-            logger.info("\n" + "=" * 80)
+            logger.info("\\n" + "=" * 80)
             logger.info("Workflow completed successfully!")
             logger.info(f"Published at: {publication_url}")
             logger.info("=" * 80)
