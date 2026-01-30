@@ -19,7 +19,7 @@ class PerplexityNotebookGenerator:
         self.timeout = 60
         # Initialize OpenAI client with Groq endpoint
         # Create HTTP client without proxies to avoid compatibility issues
-            http_client = httpx.Client(proxies=None)
+        http_client = httpx.Client(proxies=None)
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
