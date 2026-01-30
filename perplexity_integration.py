@@ -57,7 +57,7 @@ class PerplexityNotebookGenerator:
             logger.error(f'Groq API error: {str(e)}')
             return self._generate_template_notebook()
     
-            def _format_notebook_content(self, content: str) -> str:
+    def _format_notebook_content(self, content: str) -> str:
         """Format Groq content into a clean nbformat-4 notebook."""
         # Normalize newlines
         text = content.replace("\r\n", "\n").replace("\r", "\n")
@@ -69,7 +69,6 @@ class PerplexityNotebookGenerator:
             block = text_block.strip()
             if not block:
                 return None
-            # keep line breaks
             lines = block.split("\n")
             return {
                 "cell_type": "markdown",
@@ -81,7 +80,6 @@ class PerplexityNotebookGenerator:
             block = code_block.strip()
             if not block:
                 return None
-            # strip optional language tag at top
             lines = block.split("\n")
             if lines and lines[0].strip().lower() in ("python", "python3"):
                 lines = lines[1:]
@@ -106,7 +104,6 @@ class PerplexityNotebookGenerator:
             "nbformat_minor": 4,
         }
 
-        # Split by ``` fences into markdown/code blocks
         blocks = text.split("```")
         for i, block in enumerate(blocks):
             if not block.strip():
