@@ -49,9 +49,9 @@ class KaggLeNotebookOrchestrator:
             logger.error(f'Failed to authenticate Kaggle API: {str(e)}')
             raise
         
-        self.perplexity_key = os.getenv('GROQ_API_KEY')
+        self.perplexity_key = os.getenv('KAGGLE_GROQ')
         if not self.perplexity_key:
-            raise ValueError('GROQ_API_KEY environment variable not set')
+            raise ValueError('KAGGLE_GROQ environment variable not set')
         
         try:
             self.perplexity_generator = PerplexityNotebookGenerator(self.perplexity_key)
