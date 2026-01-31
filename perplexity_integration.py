@@ -34,9 +34,9 @@ class PerplexityNotebookGenerator:
             logger.info("Calling Groq API for notebook generation...")
 
             system_prompt = (
-                "You are an expert data scientist and machine learning engineer. "
-                "Generate complete, production-ready Jupyter notebook code with "
-                "proper markdown documentation."
+                "You are an expert Kaggle data scientist. "
+                "Return a high-quality notebook as MARKDOWN plus ```python code``` blocks. "
+                "Do NOT output JSON; only headings, text, and code fences."
             )
 
             response = self.client.chat.completions.create(
@@ -53,50 +53,7 @@ class PerplexityNotebookGenerator:
                 content = response.choices[0].message.content
                 if content:
                     logger.info("Successfully generated notebook content with Groq")
-
-                    # If Groq already returns a full nbformat JSON notebook, lightly format and use it as-is
-                    try:
-                        parsed = json.loads(content)
-                        if (
-                            isinstance(parsed, dict)
-                            and "cells" in parsed
-                            and "nbformat" in parsed
-                        ):
-                            logger.info(
-                                "Groq returned nbformat JSON notebook; formatting cells"
-                            )
-
-                            for cell in parsed.get("cells", []):
-                                if cell.get("cell_type") == "markdown":
-                                    src = "".join(cell.get("source", []))
-                                    # add spacing before headings
-                                    src = src.replace("## ", "\n\n## ").replace(
-                                        "### ", "\n\n### "
-                                    )
-                                    cell["source"] = [
-                                        line + ("\n" if not line.endswith("\n") else "")
-                                        for line in src.split("\n")
-                                    ]
-                                elif cell.get("cell_type") == "code":
-                                    # Expand compact lines with ';' into separate lines
-                                    new_lines = []
-                                    for line in cell.get("source", []):
-                                        parts = line.split(";")
-                                        for part in parts:
-                                            part = part.rstrip()
-                                            if part:
-                                                if not part.endswith("\n"):
-                                                    part += "\n"
-                                                new_lines.append(part)
-                                    if new_lines:
-                                        cell["source"] = new_lines
-
-                            return json.dumps(parsed, indent=2)
-                    except Exception:
-                        # Not valid JSON or formatting failed -> fall back to text formatter
-                        pass
-
-                    # Groq returned markdown/code text -> convert to notebook
+                    # Always treat as text (markdown + code fences)
                     return self._format_notebook_content(content)
 
             logger.error("Groq API returned empty content")
