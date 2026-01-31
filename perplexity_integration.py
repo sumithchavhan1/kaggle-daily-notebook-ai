@@ -54,7 +54,7 @@ class PerplexityNotebookGenerator:
                 if content:
                     logger.info("Successfully generated notebook content with Groq")
 
-                    # If Groq already returns a full nbformat JSON notebook, use it as-is
+                    # If Groq already returns a full nbformat JSON notebook, lightly format and use it as-is
                     try:
                         parsed = json.loads(content)
                         if (
@@ -62,10 +62,38 @@ class PerplexityNotebookGenerator:
                             and "cells" in parsed
                             and "nbformat" in parsed
                         ):
-                            logger.info("Groq returned nbformat JSON notebook; using as-is")
+                            logger.info(
+                                "Groq returned nbformat JSON notebook; formatting cells"
+                            )
+
+                            for cell in parsed.get("cells", []):
+                                if cell.get("cell_type") == "markdown":
+                                    src = "".join(cell.get("source", []))
+                                    # add spacing before headings
+                                    src = src.replace("## ", "\n\n## ").replace(
+                                        "### ", "\n\n### "
+                                    )
+                                    cell["source"] = [
+                                        line + ("\n" if not line.endswith("\n") else "")
+                                        for line in src.split("\n")
+                                    ]
+                                elif cell.get("cell_type") == "code":
+                                    # Expand compact lines with ';' into separate lines
+                                    new_lines = []
+                                    for line in cell.get("source", []):
+                                        parts = line.split(";")
+                                        for part in parts:
+                                            part = part.rstrip()
+                                            if part:
+                                                if not part.endswith("\n"):
+                                                    part += "\n"
+                                                new_lines.append(part)
+                                    if new_lines:
+                                        cell["source"] = new_lines
+
                             return json.dumps(parsed, indent=2)
                     except Exception:
-                        # Not JSON; fall back to our formatter
+                        # Not valid JSON or formatting failed -> fall back to text formatter
                         pass
 
                     # Groq returned markdown/code text -> convert to notebook
@@ -79,7 +107,7 @@ class PerplexityNotebookGenerator:
             return self._generate_template_notebook()
 
     def _format_notebook_content(self, content: str) -> str:
-        """Format Groq content into a clean nbformat-4 notebook."""
+        """Format Groq text content into a clean nbformat-4 notebook."""
         # Normalize newlines
         text = content.replace("\r\n", "\n").replace("\r", "\n")
 
@@ -105,12 +133,21 @@ class PerplexityNotebookGenerator:
             # strip optional language tag at top
             if lines and lines[0].strip().lower() in ("python", "python3"):
                 lines = lines[1:]
+            # expand ';' into separate lines for readability
+            expanded = []
+            for line in lines:
+                for part in line.split(";"):
+                    part = part.rstrip()
+                    if part:
+                        if not part.endswith("\n"):
+                            part += "\n"
+                        expanded.append(part)
             return {
                 "cell_type": "code",
                 "execution_count": None,
                 "metadata": {},
                 "outputs": [],
-                "source": [ln + "\n" for ln in lines],
+                "source": expanded,
             }
 
         notebook = {
@@ -168,30 +205,4 @@ class PerplexityNotebookGenerator:
             "nbformat": 4,
             "nbformat_minor": 4,
         }
-        try:
-                        parsed = json.loads(content)
-                        if (
-                            isinstance(parsed, dict)
-                            and "cells" in parsed
-                            and "nbformat" in parsed
-                        ):
-                            logger.info("Groq returned nbformat JSON notebook; formatting cells")
-
-                            for cell in parsed.get("cells", []):
-                                if cell.get("cell_type") == "markdown":
-                                    src = "".join(cell.get("source", []))
-                                    src = src.replace("## ", "\n\n## ").replace("### ", "\n\n### ")
-                                    cell["source"] = [line + ("\n" if not line.endswith("\n") else "") for line in src.split("\n")]
-                                elif cell.get("cell_type") == "code":
-                                    # Expand any ';' into separate lines
-                                    new_lines = []
-                                    for line in cell.get("source", []):
-                                        for part in line.split(";"):
-                                            part = part.rstrip()
-                                            if part:
-                                                if not part.endswith("\n"):
-                                                    part += "\n"
-                                                new_lines.append(part)
-                                    cell["source"] = new_lines
-                                    
-                            return json.dumps(parsed, indent=2)
+        return json.dumps(notebook, indent=2)
