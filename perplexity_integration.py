@@ -38,23 +38,11 @@ class PerplexityNotebookGenerator:
         """
         Generate notebook content using the custom prompt from main.py.
         This is the method main.py expects to call.
-        
-        Args:
-            dataset_ref: Kaggle dataset reference (e.g., 'username/dataset-name')
-            dataset_title: Human-readable dataset title
-            dataset_description: Dataset description/subtitle
-            custom_prompt: The complete prompt from main.py
-            
-        Returns:
-            JSON string containing the notebook in nbformat 4
         """
         try:
             logger.info(f"Generating notebook for dataset: {dataset_title}")
             logger.info(f"Dataset ref: {dataset_ref}")
-            
-            # Use the custom_prompt directly - it already contains all instructions
             return self.generate_notebook_content(custom_prompt)
-            
         except Exception as e:
             logger.error(f"Error in generate_notebook: {str(e)}")
             return self._generate_template_notebook()
@@ -96,39 +84,42 @@ class PerplexityNotebookGenerator:
 
     def _format_notebook_content(self, content: str) -> str:
         """Format Groq text content into a clean nbformat-4 notebook."""
-        # Normalize newlines
-        text = content.replace("\\r\\n", "\\n").replace("\\r", "\\n")
+        # Normalize newlines to real \n
+        text = content.replace("\r\n", "\n").replace("\r", "\n")
 
         # Add spacing before headings so they don't stick to previous text
-        text = text.replace("## ", "\\n\\n## ").replace("### ", "\\n\\n### ")
+        text = text.replace("## ", "\n\n## ").replace("### ", "\n\n### ")
 
         def markdown_cell(text_block: str) -> Dict:
             block = text_block.strip()
             if not block:
                 return None
-            lines = block.split("\\n")
+            lines = block.split("\n")
             return {
                 "cell_type": "markdown",
                 "metadata": {},
-                "source": [ln + "\\n" for ln in lines],
+                "source": [ln + "\n" for ln in lines],
             }
 
         def code_cell(code_block: str) -> Dict:
             block = code_block.strip()
             if not block:
                 return None
-            lines = code_block.split("\\n")
+            lines = code_block.split("\n")
             # strip optional language tag at top
             if lines and lines[0].strip().lower() in ("python", "python3"):
                 lines = lines[1:]
             # expand ';' into separate lines for readability
             expanded = []
             for line in lines:
+                # ignore trailing literal "\n" artifacts if any slipped through
+                if line.endswith(r"\n") and not line.endswith("\\\\n"):
+                    line = line[:-2]
                 for part in line.split(";"):
                     part = part.rstrip()
                     if part:
-                        if not part.endswith("\\n"):
-                            part += "\\n"
+                        if not part.endswith("\n"):
+                            part += "\n"
                         expanded.append(part)
             return {
                 "cell_type": "code",
@@ -173,14 +164,14 @@ class PerplexityNotebookGenerator:
                 {
                     "cell_type": "markdown",
                     "metadata": {},
-                    "source": ["# Kaggle Notebook: ML Analysis\\n"],
+                    "source": ["# Kaggle Notebook: ML Analysis\n"],
                 },
                 {
                     "cell_type": "code",
                     "execution_count": None,
                     "metadata": {},
                     "outputs": [],
-                    "source": ["import pandas as pd\\n", "import numpy as np\\n"],
+                    "source": ["import pandas as pd\n", "import numpy as np\n"],
                 },
             ],
             "metadata": {
