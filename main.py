@@ -382,30 +382,30 @@ Add a short "Quick Summary" near the top (dataset, target, best model idea, key 
 
 Generate the notebook content now as markdown plus python code blocks.
 '''
+            
+                def _generate():
+                return self.perplexity_generator.generate_notebook(
+                    dataset_ref=dataset_info["ref"],
+                    dataset_title=dataset_info["title"],
+                    dataset_description=dataset_info["description"],
+                    custom_prompt=prompt,
+                )
 
-                    def _generate():
-            return self.perplexity_generator.generate_notebook(
-                dataset_ref=dataset_info["ref"],
-                dataset_title=dataset_info["title"],
-                dataset_description=dataset_info["description"],
-                custom_prompt=prompt,
+            notebook_content = self._retry_operation(
+                _generate, operation_name="Generate notebook with Groq AI"
             )
 
-        notebook_content = self._retry_operation(
-            _generate, operation_name="Generate notebook with Groq AI"
-        )
+            if notebook_content:
+                logger.info("Notebook generated successfully")
+                return notebook_content
+            else:
+                logger.error("Failed to generate notebook content")
+                return None
 
-        if notebook_content:
-            logger.info("Notebook generated successfully")
-            return notebook_content
-        else:
-            logger.error("Failed to generate notebook content")
+        except Exception as e:
+            logger.error(f"Error generating notebook: {str(e)}")
             return None
-
-    except Exception as e:
-        logger.error(f"Error generating notebook: {str(e)}")
-        return None
-
+            
 def publish_notebook(self, notebook_content: str, dataset_info: Dict[str, Any]) -> bool:
     """Publish the generated notebook to Kaggle with error handling"""
     try:
