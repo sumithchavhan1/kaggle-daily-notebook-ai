@@ -179,6 +179,13 @@ GENERAL GUIDELINES:
 - Prefer simple, robust code over overly clever tricks.
 - Comment non‑obvious steps.
 - Avoid hard‑coding paths other than the main CSV in the current directory.
+
+GENERAL PRESENTATION RULES:
+- Always put a blank line after a heading before the paragraph.
+- Keep code cells short (20–40 lines each); split long workflows into multiple cells.
+- Use one statement per line; avoid `;` to join multiple statements.
+- Use clear section headers in markdown that match the Table of Contents.
+- Prefer `plt.figure(figsize=(...))` per plot instead of stacking multiple plots in one cell.
 """
             def _generate():
                 return self.perplexity_generator.generate_notebook_content(prompt)
