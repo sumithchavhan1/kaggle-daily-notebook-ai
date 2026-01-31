@@ -22,6 +22,9 @@ except ImportError as e:
     print(f"Import error: {str(e)}")
     sys.exit(1)
 
+# File to remember last used dataset, to avoid immediate repeats
+LAST_DATASET_FILE = "last_dataset_ref.txt"
+
 # Configure logging with better formatting
 logging.basicConfig(
     level=logging.INFO,
@@ -82,7 +85,7 @@ class KaggLeNotebookOrchestrator:
                     raise
 
     def fetch_trending_dataset(self) -> Optional[Dict[str, Any]]:
-        """Fetch a trending dataset from Kaggle with retry logic"""
+        """Fetch a trending dataset from Kaggle with retry logic, avoiding immediate repeats."""
         try:
             logger.info("Fetching trending datasets from Kaggle...")
 
@@ -96,9 +99,33 @@ class KaggLeNotebookOrchestrator:
                     logger.warning("No trending datasets found")
                     return None
 
-                # Choose a random dataset from the top N hottest
                 top_n = min(10, len(datasets))
-                selected_dataset = random.choice(datasets[:top_n])
+                candidates = datasets[:top_n]
+
+                # Load last dataset ref if exists
+                last_ref = None
+                if os.path.exists(LAST_DATASET_FILE):
+                    try:
+                        with open(LAST_DATASET_FILE, "r") as f:
+                            last_ref = f.read().strip()
+                    except Exception:
+                        last_ref = None
+
+                # Filter out last one if possible
+                if last_ref:
+                    filtered = [d for d in candidates if d.ref != last_ref]
+                    if filtered:
+                        candidates = filtered
+
+                selected_dataset = random.choice(candidates)
+
+                # Persist current ref for next run
+                try:
+                    with open(LAST_DATASET_FILE, "w") as f:
+                        f.write(selected_dataset.ref)
+                except Exception as e:
+                    logger.warning(f"Could not write LAST_DATASET_FILE: {e}")
+
                 logger.info(f"Selected dataset: {selected_dataset.ref}")
 
                 return {
