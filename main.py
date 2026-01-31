@@ -209,35 +209,37 @@ for root, _, files in os.walk(input_dir):
             csv_files.append(os.path.join(root, f))
 
 if not csv_files:
-    raise FileNotFoundError(f"No CSV files found under {{input_dir}}")
+    raise FileNotFoundError(f"No CSV files found under {input_dir}")
 
 print("📂 Discovered CSV files:")
 for i, path in enumerate(csv_files, 1):
-    print(f"{{i}}. {{path}}")
+    print(f"{i}. {path}")
 
 csv_files_sorted = sorted(csv_files, key=os.path.getsize, reverse=True)
-main_csv_path = csv_files_sorted[0]
+main_csv_path = csv_files_sorted
 
-print(f"\\n✅ Loading main file: {{main_csv_path}}")
+print(f"\n✅ Loading main file: {main_csv_path}")
 df = pd.read_csv(main_csv_path, low_memory=False)
 
-print("\\n✅ Data loaded!")
-print(f"Shape: {{df.shape}}")
+print("\n✅ Data loaded!")
+print(f"Shape: {df.shape}")
 print("Columns:", list(df.columns))
 ```
 
 Immediately after loading, run a quick audit:
 
-- df.head()
-- df.info()
-- df.describe(include="all").T
-- Missing values summary (per column)
-- Duplicate count
+df.head()
+
+df.info()
+
+df.describe(include="all").T
+
+Missing values summary (per column)
+
+Duplicate count
 
 ===============================================================================
 PHASE 2: DATA CLEANING & FEATURE ENGINEERING
-===============================================================================
-
 Create df_clean as a cleaned copy of df.
 
 Handle missing values for numeric and categorical columns.
@@ -262,8 +264,6 @@ They must avoid division by zero and replace inf/NaN with safe values.
 
 ===============================================================================
 PHASE 3: PRE‑MODELING QUALITY CHECKPOINT
-===============================================================================
-
 Before training models:
 
 Define X (features) and y (target) based on dataset semantics; explain your choice.
@@ -286,8 +286,6 @@ For classification: class counts and percentages.
 
 ===============================================================================
 PHASE 4: TRAIN/TEST SPLIT & SCALING
-===============================================================================
-
 Use train_test_split with test_size=0.2 and random_state=42.
 
 For classification with few classes, use stratify=y; for regression, no stratify.
@@ -304,8 +302,6 @@ Assert shapes and alignment after scaling.
 
 ===============================================================================
 PHASE 5: MODELING & EVALUATION
-===============================================================================
-
 Implement a universal helper:
 
 evaluate_model(model, X_tr, X_te, y_tr, y_te, model_name)
@@ -338,8 +334,6 @@ Each model should be wrapped in try/except so a failure does not crash the noteb
 
 ===============================================================================
 PHASE 6: MODEL COMPARISON & BEST MODEL
-===============================================================================
-
 Collect all successful evaluation results.
 
 Build a comparison DataFrame:
@@ -354,8 +348,6 @@ Clearly print the best model and its key scores.
 
 ===============================================================================
 PHASE 7: EXPLAINABILITY
-===============================================================================
-
 If the best model exposes feature_importances_:
 
 Build a feature importance table (top 20).
@@ -372,8 +364,6 @@ Show a bar summary plot and a detailed summary plot, if possible.
 
 ===============================================================================
 STYLE & PRESENTATION GUIDELINES
-===============================================================================
-
 Use as many cells as needed; do NOT cram.
 
 For each major step:
@@ -393,109 +383,109 @@ Add a short "Quick Summary" near the top (dataset, target, best model idea, key 
 Generate the notebook content now as markdown plus python code blocks.
 '''
 
-            def _generate():
-                return self.perplexity_generator.generate_notebook(
-                    dataset_ref=dataset_info["ref"],
-                    dataset_title=dataset_info["title"],
-                    dataset_description=dataset_info["description"],
-                    custom_prompt=prompt,
-                )
-
-            notebook_content = self._retry_operation(
-                _generate, operation_name="Generate notebook with Groq AI"
+                    def _generate():
+            return self.perplexity_generator.generate_notebook(
+                dataset_ref=dataset_info["ref"],
+                dataset_title=dataset_info["title"],
+                dataset_description=dataset_info["description"],
+                custom_prompt=prompt,
             )
 
-            if notebook_content:
-                logger.info("Notebook generated successfully")
-                return notebook_content
-            else:
-                logger.error("Failed to generate notebook content")
-                return None
+        notebook_content = self._retry_operation(
+            _generate, operation_name="Generate notebook with Groq AI"
+        )
 
-        except Exception as e:
-            logger.error(f"Error generating notebook: {str(e)}")
+        if notebook_content:
+            logger.info("Notebook generated successfully")
+            return notebook_content
+        else:
+            logger.error("Failed to generate notebook content")
             return None
 
-    def publish_notebook(self, notebook_content: str, dataset_info: Dict[str, Any]) -> bool:
-        """Publish the generated notebook to Kaggle with error handling"""
-        try:
-            logger.info("Publishing notebook to Kaggle...")
+    except Exception as e:
+        logger.error(f"Error generating notebook: {str(e)}")
+        return None
 
-            def _publish():
-                return self.publisher.publish_notebook(
-                    notebook_content=notebook_content,
-                    dataset_ref=dataset_info["ref"],
-                    dataset_title=dataset_info["title"],
-                )
+def publish_notebook(self, notebook_content: str, dataset_info: Dict[str, Any]) -> bool:
+    """Publish the generated notebook to Kaggle with error handling"""
+    try:
+        logger.info("Publishing notebook to Kaggle...")
 
-            result = self._retry_operation(_publish, operation_name="Publish notebook to Kaggle")
+        def _publish():
+            return self.publisher.publish_notebook(
+                notebook_content,
+                dataset_info["ref"],
+                dataset_info["title"],
+            )
 
-            if result:
-                logger.info("✅ Notebook published successfully!")
-                return True
-            else:
-                logger.error("Failed to publish notebook")
-                return False
+        result = self._retry_operation(_publish, operation_name="Publish notebook to Kaggle")
 
-        except Exception as e:
-            logger.error(f"Error publishing notebook: {str(e)}")
+        if result:
+            logger.info("✅ Notebook published successfully!")
+            return True
+        else:
+            logger.error("Failed to publish notebook")
             return False
 
-    def run_daily_workflow(self) -> bool:
-        """Execute the complete daily notebook generation and publication workflow"""
-        try:
+    except Exception as e:
+        logger.error(f"Error publishing notebook: {str(e)}")
+        return False
+
+def run_daily_workflow(self) -> bool:
+    """Execute the complete daily notebook generation and publication workflow"""
+    try:
+        logger.info("=" * 80)
+        logger.info("Starting Daily Kaggle Notebook Workflow")
+        logger.info(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}")
+        logger.info("=" * 80)
+
+        # Step 1: Fetch trending dataset
+        dataset_info = self.fetch_trending_dataset()
+        if not dataset_info:
+            logger.error("Failed to fetch dataset. Aborting workflow.")
+            return False
+
+        logger.info(f"Selected Dataset: {dataset_info['title']}")
+        logger.info(f"Dataset Reference: {dataset_info['ref']}")
+
+        # Step 2: Generate notebook
+        notebook_content = self.generate_notebook(dataset_info)
+        if not notebook_content:
+            logger.error("Failed to generate notebook. Aborting workflow.")
+            return False
+
+        # Step 3: Publish notebook
+        success = self.publish_notebook(notebook_content, dataset_info)
+
+        if success:
             logger.info("=" * 80)
-            logger.info("Starting Daily Kaggle Notebook Workflow")
-            logger.info(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}")
+            logger.info("✅ Daily workflow completed successfully!")
             logger.info("=" * 80)
-
-            # Step 1: Fetch trending dataset
-            dataset_info = self.fetch_trending_dataset()
-            if not dataset_info:
-                logger.error("Failed to fetch dataset. Aborting workflow.")
-                return False
-
-            logger.info(f"Selected Dataset: {dataset_info['title']}")
-            logger.info(f"Dataset Reference: {dataset_info['ref']}")
-
-            # Step 2: Generate notebook
-            notebook_content = self.generate_notebook(dataset_info)
-            if not notebook_content:
-                logger.error("Failed to generate notebook. Aborting workflow.")
-                return False
-
-            # Step 3: Publish notebook
-            success = self.publish_notebook(notebook_content, dataset_info)
-
-            if success:
-                logger.info("=" * 80)
-                logger.info("✅ Daily workflow completed successfully!")
-                logger.info("=" * 80)
-                return True
-            else:
-                logger.error("=" * 80)
-                logger.error("❌ Daily workflow failed at publication step")
-                logger.error("=" * 80)
-                return False
-
-        except Exception as e:
-            logger.error(f"Unexpected error in daily workflow: {str(e)}")
+            return True
+        else:
             logger.error("=" * 80)
-            logger.error("❌ Daily workflow failed with unexpected error")
+            logger.error("❌ Daily workflow failed at publication step")
             logger.error("=" * 80)
             return False
+
+    except Exception as e:
+        logger.error(f"Unexpected error in daily workflow: {str(e)}")
+        logger.error("=" * 80)
+        logger.error("❌ Daily workflow failed with unexpected error")
+        logger.error("=" * 80)
+        return False
+
 
 
 def main():
-    """Main entry point for the script"""
-    try:
-        orchestrator = KaggleNotebookOrchestrator()
-        success = orchestrator.run_daily_workflow()
-        sys.exit(0 if success else 1)
-    except Exception as e:
-        logger.error(f"Fatal error: {str(e)}")
-        sys.exit(1)
+"""Main entry point for the script"""
+try:
+orchestrator = KaggleNotebookOrchestrator()
+success = orchestrator.run_daily_workflow()
+sys.exit(0 if success else 1)
+except Exception as e:
+logger.error(f"Fatal error: {str(e)}")
+sys.exit(1)
 
-
-if __name__ == "__main__":
-    main()
+if name == "main":
+main()
