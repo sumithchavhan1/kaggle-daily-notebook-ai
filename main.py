@@ -310,7 +310,25 @@ GENERAL PRESENTATION RULES (MANDATORY):
 - Use clear, concise comments; avoid excessive decoration.
 - Use consistent variable names across the notebook.
 
-Generate the FINAL notebook JSON now.
+Notebook style should be similar to a top Kaggle EDA+model notebook:
+- Catchy title with emoji.
+- Quick summary bullets (dataset size, target, best model idea, key features).
+- Sections: Setup, Fast Data Loading, EDA, Feature Engineering, Modeling, Evaluation, Insights.
+
+Content requirements:
+- Suggest which column is the target and why.
+- Describe 3–5 most important features and why they matter.
+- Provide clean EDA plots ideas (distributions, correlations, target vs features).
+- Propose 2–3 models (one tree-based) with evaluation metrics.
+- Add high-level narrative and conclusions.
+
+Formatting rules:
+- Use headings (#, ##, ###) with blank lines.
+- Use bullet lists where appropriate.
+- Wrap code in ```python fences.
+- Keep code idiomatic but not too long; split logically.
+
+Generate nicely formatted markdown + code blocks now.
 """
             def _generate():
                 return self.perplexity_generator.generate_notebook_content(prompt)
