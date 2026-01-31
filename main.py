@@ -147,288 +147,80 @@ class KaggLeNotebookOrchestrator:
             logger.info(f"Generating notebook for dataset: {dataset_info['title']}")
 
             prompt = f"""
-You are a **Kaggle Grandmaster–level data scientist** with **100% success rate** creating **medal-worthy, error-free Kaggle notebooks (.ipynb)**.
+You are a Kaggle Grandmaster–level data scientist with a proven track record of creating medal‑winning, error‑free Kaggle notebooks.
 
-The dataset you must analyze is: **'{dataset_info['title']}'**.
+The dataset you must analyze is: '{dataset_info['title']}'.
 
-================================================================================
-ZERO-ERROR GUARANTEE FRAMEWORK
-================================================================================
+Your task:
+- Produce a full end‑to‑end analysis and modeling notebook.
+- The notebook must run without errors on Kaggle.
+- Focus on clarity, teaching value, and strong modeling practices.
 
-MISSION: Generate notebooks that run end-to-end without ANY errors on Kaggle, 100% of the time.
+IMPORTANT OUTPUT FORMAT:
+- Return ONLY markdown text and ```python code``` blocks.
+- Do NOT return JSON or nbformat structures.
+- Use multiple markdown and code cells (not one giant cell).
+- Use clear headings: #, ##, ### with a blank line after each heading.
 
-You MUST:
-- Auto-discover dataset files under `/kaggle/input`.
-- Load the correct CSV(s) robustly.
-- Perform a full data audit, cleaning, feature engineering, modeling, evaluation, and explainability.
-- Follow the coding patterns exactly as shown in the template blocks below (they are reference patterns, not literal strings).
+===============================================================================
+NOTEBOOK STRUCTURE (SECTIONS)
+===============================================================================
 
-STRICT OUTPUT FORMAT:
-- Output ONLY a valid Jupyter notebook in JSON (nbformat 4). No backticks, no markdown fences, no extra prose.
-- Use multiple markdown and code cells, not one giant cell.
-- Use clear headings: #, ##, ### with blank lines after headings.
-- Code must be PEP8-style, one statement per line (no `;`), logically split into cells.
+Aim for a structure similar to top Kaggle EDA+model notebooks:
 
-================================================================================
-PHASE 1: BULLETPROOF DATA LOADING
-================================================================================
-
-You MUST implement:
-- Auto-discovery of all files under `/kaggle/input`.
-- Selection and loading of the primary CSV into `df`.
-- Immediate data quality audit (shape, dtypes, missing, duplicates, describe).
-
-Follow the patterns shown below, but USE ACTUAL COLUMN NAMES from this dataset:
-
-(Example pattern – adapt, do not hardcode)
-
-- Scan `/kaggle/input` and list CSVs.
-- Load first CSV or a clearly justified main CSV.
-- Print audit: dims, dtypes, missing summary, duplicates, describe.
-
-================================================================================
-PHASE 2: IRONCLAD DATA CLEANING (ZERO-NaN GUARANTEE)
-================================================================================
-
-You MUST:
-- Create `df_clean` as a cleaned copy of `df`.
-- Implement:
-  - Domain-specific imputations where obvious from column names.
-  - Numeric imputation with median + optional missing flags.
-  - Categorical imputation with mode/"Unknown".
-  - Drop columns with >50% missing if needed.
-  - Drop rows with remaining missing only if <30% of rows, otherwise adjust strategy.
-- Assert at the end that `df_clean` has ZERO missing values and no duplicates.
-
-Implement helper utilities for safe transforms:
-
-- `safe_divide(num, denom, fill_value=0)`
-- `safe_log(values, fill_value=0)`
-- `safe_sqrt(values, fill_value=0)`
-
-These must:
-- Avoid division by zero.
-- Replace inf/-inf and NaN with `fill_value`.
-
-Use them in feature engineering where appropriate.
-
-================================================================================
-PHASE 3: PRE-MODELING QUALITY GATE
-================================================================================
-
-You MUST:
-- Build feature matrix `X` and target `y` based on the problem (classification vs regression).
-- Run a pre-modeling checkpoint that:
-  - Checks and fixes any remaining NaN/inf in X/y (with clear logs).
-  - Confirms all features in X are numeric (encode categoricals if needed).
-  - Verifies shapes and alignment of X, y, and feature list.
-  - Prints target distribution (stats for regression, class counts for classification).
-  - Prints memory usage of X and y and warns if too large.
-
-================================================================================
-PHASE 4: BULLETPROOF TRAIN-TEST SPLIT & SCALING
-================================================================================
-
-You MUST:
-- Use a single `train_test_split` with `test_size=0.2` and `random_state=42`.
-- Use `stratify=y` for classification (few classes), no stratify for regression.
-- Apply scaling via `StandardScaler`:
-  - Fit scaler on full X to get consistent transformation.
-  - Create `X_scaled` as DataFrame.
-  - Derive `X_train_scaled` and `X_test_scaled` by indexing on train/test indices.
-- Assert shapes and alignment after scaling.
-
-================================================================================
-PHASE 5: ERROR-PROOF MODEL TRAINING
-================================================================================
-
-You MUST implement:
-
-- A universal `evaluate_model(model, X_tr, X_te, y_tr, y_te, model_name)` that:
-  - Fits model, predicts, determines regression vs classification.
-  - For regression: R², RMSE, MAE, MAPE, optional CV R² (5-fold).
-  - For classification: accuracy, classification report, optional CV accuracy.
-  - Performs an overfitting check by comparing train vs test metrics.
-  - Wraps everything in try/except and prints detailed errors without crashing the notebook.
-
-Train at least 3–4 models where applicable, e.g.:
-
-- Ridge / LinearRegression.
-- RandomForestRegressor or RandomForestClassifier.
-- XGBRegressor / XGBClassifier (if available).
-- LGBMRegressor / LGBMClassifier (if available).
-
-Each model must be wrapped in try/except; failure of one model must not crash the notebook.
-
-================================================================================
-PHASE 6: SAFE MODEL COMPARISON AND BEST MODEL SELECTION
-================================================================================
-
-You MUST:
-- Collect all successful `evaluate_model` results.
-- Build a comparison DataFrame (Regression: Test R²/RMSE/MAE/MAPE; Classification: Train/Test accuracy, CV).
-- Sort by best primary metric (Test R² or Test Accuracy).
-- Print the best model name and its key metrics.
-
-================================================================================
-PHASE 7: SAFE EXPLAINABILITY
-================================================================================
-
-If the best model supports `feature_importances_`:
-
-- Build and display a feature importance table (top 20 features).
-- Plot a horizontal bar chart of top importances.
-
-If SHAP is available and appropriate:
-
-- Attempt SHAP TreeExplainer for tree models.
-- Sample at most 100 rows from X_test.
-- Generate SHAP summary plots (bar + swarm) with try/except; on failure, log a warning and continue.
-
-================================================================================
-NOTEBOOK STRUCTURE (CELLS)
-================================================================================
-
-Organize the notebook into clean sections:
-
-1. Intro & Context (markdown)
+1. Intro & Problem Summary (markdown)
 2. Setup & Imports (code)
 3. Data Loading & Audit (code + markdown)
 4. Data Cleaning Pipeline (code + markdown)
 5. Feature Engineering (code + markdown)
-6. Pre-Modeling Checkpoint (code)
+6. Pre‑Modeling Checkpoint (code)
 7. Train/Test Split & Scaling (code)
 8. Modeling & Evaluation (multiple code + markdown)
 9. Model Comparison & Best Model Summary (code + markdown)
-10. Explainability (Feature Importance + SHAP if applicable)
+10. Explainability (Feature Importance + optional SHAP)
 11. Final Insights & Recommendations (markdown)
 
-GENERAL PRESENTATION RULES (MANDATORY):
-- Always put a blank line after a heading before text.
-- Keep code cells between ~20–40 lines; split longer workflows.
-- Use one statement per line; do NOT use `;` to join statements.
-- Use clear, concise comments; avoid excessive decoration.
-- Use consistent variable names across the notebook.
+You can add extra cells where useful; do not force fixed counts.
 
-Notebook style should be similar to a top Kaggle EDA+model notebook:
-- Catchy title with emoji.
-- Quick summary bullets (dataset size, target, best model idea, key features).
-- Sections: Setup, Fast Data Loading, EDA, Feature Engineering, Modeling, Evaluation, Insights.
+===============================================================================
+PHASE 1: ROBUST DATA LOADING
+===============================================================================
 
-Content requirements:
-- Suggest which column is the target and why.
-- Describe 3–5 most important features and why they matter.
-- Provide clean EDA plots ideas (distributions, correlations, target vs features).
-- Propose 2–3 models (one tree-based) with evaluation metrics.
-- Add high-level narrative and conclusions.
+In the "Data Loading & Audit" section you MUST:
 
-Formatting rules:
-- Use headings (#, ##, ###) with blank lines.
-- Use bullet lists where appropriate.
-- Wrap code in ```python fences.
-- Keep code idiomatic but not too long; split logically.
+- Use os.walk('/kaggle/input') to find all .csv files recursively.
+- Print all discovered CSV file paths in a numbered list.
+- Choose the main CSV as the LARGEST file by size.
+- Load it into a DataFrame named df with low_memory=False.
+- After loading, print shape and columns.
 
-Generate nicely formatted markdown + code blocks now.
-"""
-            def _generate():
-                return self.perplexity_generator.generate_notebook_content(prompt)
+Use this pattern (you may adjust variable names slightly, but preserve the logic):
 
-            notebook_content = self._retry_operation(_generate, operation_name="Generate notebook content")
+```python
+import os
+import pandas as pd
 
-            if not notebook_content:
-                logger.error("Perplexity returned empty content")
-                return None
+input_dir = "/kaggle/input"
+csv_files = []
 
-            logger.info(f"Notebook content generated successfully ({len(notebook_content)} chars)")
-            return notebook_content
+for root, _, files in os.walk(input_dir):
+    for f in files:
+        if f.lower().endswith(".csv"):
+            csv_files.append(os.path.join(root, f))
 
-        except Exception as e:
-            logger.error(f"Error generating notebook: {str(e)}")
-            return None
+if not csv_files:
+    raise FileNotFoundError(f"No CSV files found under {input_dir}")
 
-    def publish_notebook(self, notebook_content: str, dataset_info: Dict[str, Any]) -> Optional[str]:
-        """Publish the generated notebook to Kaggle with error handling"""
-        try:
-            logger.info("Publishing notebook to Kaggle...")
+print("📂 Discovered CSV files:")
+for i, path in enumerate(csv_files, 1):
+    print(f"{i}. {path}")
 
-            # Create Kaggle‑safe, short title (<= 50 chars)
-            dataset_name = dataset_info["title"].replace("_", " ").title()
-            date_str = datetime.now().strftime("%Y-%m-%d")
+csv_files_sorted = sorted(csv_files, key=os.path.getsize, reverse=True)
+main_csv_path = csv_files_sorted
 
-            base_title = dataset_name
-            max_base_len = 50 - 13  # space for " - YYYY-MM-DD"
-            if len(base_title) > max_base_len:
-                base_title = base_title[: max_base_len - 3].rstrip() + "..."
+print(f"\\n✅ Loading main file: {main_csv_path}")
+df = pd.read_csv(main_csv_path, low_memory=False)
 
-            notebook_title = f"{base_title} - {date_str}"
-
-            def _publish():
-                return self.publisher.publish_notebook(
-                    title=notebook_title,
-                    content=notebook_content,
-                    dataset_ref=dataset_info["ref"],
-                    is_private=False,
-                )
-
-            publication_url = self._retry_operation(_publish, operation_name="Publish notebook")
-
-            logger.info(f"Notebook published successfully: {publication_url}")
-            return publication_url
-
-        except Exception as e:
-            logger.error(f"Error publishing notebook: {str(e)}")
-            return None
-
-    def run(self) -> bool:
-        """Execute the complete workflow with error handling"""
-        try:
-            logger.info("=" * 80)
-            logger.info("Starting Kaggle Daily Notebook Generation Workflow")
-            logger.info(f"Execution time: {datetime.now().isoformat()}")
-            logger.info(f"IST Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}")
-            logger.info("=" * 80)
-
-            # Step 1: Fetch trending dataset
-            logger.info("\\n[STEP 1] Fetching trending dataset...")
-            dataset_info = self.fetch_trending_dataset()
-            if not dataset_info:
-                logger.error("Failed to fetch trending dataset")
-                return False
-            logger.info(f"Selected dataset: {dataset_info['ref']}")
-
-            # Step 2: Generate notebook content
-            logger.info("\\n[STEP 2] Generating notebook content with Groq AI...")
-            notebook_content = self.generate_notebook(dataset_info)
-            if not notebook_content:
-                logger.error("Failed to generate notebook content")
-                return False
-            logger.info(f"Generated {len(notebook_content)} characters of notebook content")
-
-            # Step 3: Publish to Kaggle
-            logger.info("\\n[STEP 3] Publishing notebook to Kaggle...")
-            publication_url = self.publish_notebook(notebook_content, dataset_info)
-            if not publication_url:
-                logger.error("Failed to publish notebook")
-                return False
-
-            logger.info("\\n" + "=" * 80)
-            logger.info("Workflow completed successfully!")
-            logger.info(f"Published at: {publication_url}")
-            logger.info("=" * 80)
-            return True
-
-        except Exception as e:
-            logger.error(f"Fatal error in workflow: {str(e)}")
-            logger.exception("Stack trace:")
-            return False
-
-
-if __name__ == "__main__":
-    try:
-        orchestrator = KaggLeNotebookOrchestrator()
-        success = orchestrator.run()
-        exit(0 if success else 1)
-    except Exception as e:
-        logger.error(f"Fatal initialization error: {str(e)}")
-        logger.exception("Stack trace:")
-        exit(1)
+print("\\n✅ Data loaded!")
+print(f"Shape: {df.shape}")
+print("Columns:", list(df.columns))
